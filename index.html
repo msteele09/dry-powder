@@ -1,0 +1,961 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#1d6b58" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0e1311" media="(prefers-color-scheme: dark)">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Dry Powder">
+<meta name="description" content="Personal money desk and AI bubble playbook.">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="icon" type="image/png" href="icons/icon-192.png">
+<title>Dry Powder</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0;font:14px system-ui,sans-serif}img{max-width:100%}[hidden]{display:none!important}
+/* Layout: a ledger desk. Sticky tab rail, one summary band, then working panels on a quiet green-grey ground. */
+:root{
+  --bg:#f4f6f4; --surface:#ffffff; --sunk:#eef1ee; --ink:#14201b; --muted:#5b6964; --line:#dfe4e0;
+  --accent:#1d6b58; --accent-soft:rgba(29,107,88,.10); --pos:#2c7a4b; --neg:#b2433a; --warn:#a86d14;
+  --pos-soft:rgba(44,122,75,.10); --neg-soft:rgba(178,67,58,.10); --warn-soft:rgba(168,109,20,.12);
+  --shadow:0 1px 2px rgba(20,32,27,.05),0 4px 16px rgba(20,32,27,.04);
+  --f-ui:"Hanken Grotesk",ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-num:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+  --r:12px;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0e1311; --surface:#151c19; --sunk:#111815; --ink:#e5ebe8; --muted:#93a19b; --line:#25302b;
+  --accent:#5ec3a3; --accent-soft:rgba(94,195,163,.13); --pos:#6fcb92; --neg:#f08a7e; --warn:#e2b15b;
+  --pos-soft:rgba(111,203,146,.12); --neg-soft:rgba(240,138,126,.12); --warn-soft:rgba(226,177,91,.13);
+  --shadow:0 1px 2px rgba(0,0,0,.3); color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0e1311; --surface:#151c19; --sunk:#111815; --ink:#e5ebe8; --muted:#93a19b; --line:#25302b;
+  --accent:#5ec3a3; --accent-soft:rgba(94,195,163,.13); --pos:#6fcb92; --neg:#f08a7e; --warn:#e2b15b;
+  --pos-soft:rgba(111,203,146,.12); --neg-soft:rgba(240,138,126,.12); --warn-soft:rgba(226,177,91,.13);
+  --shadow:0 1px 2px rgba(0,0,0,.3); color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-ui);font-size:15px;line-height:1.45}
+.wrap{max-width:1120px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.num{font-family:var(--f-num);font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+
+.brand{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:8px 16px}
+.brand h1{margin:0;font-size:22px;font-weight:700;letter-spacing:-.02em}
+.brand .sub{color:var(--muted);font-size:13px}
+.chip{display:inline-flex;align-items:center;gap:6px;font-size:12px;padding:3px 9px;border-radius:999px;background:var(--sunk);color:var(--muted);border:1px solid var(--line)}
+.chip.ok{color:var(--pos);background:var(--pos-soft);border-color:transparent}
+.chip.warn{color:var(--warn);background:var(--warn-soft);border-color:transparent}
+.chip.crit{color:var(--neg);background:var(--neg-soft);border-color:transparent}
+.chip.info{color:var(--accent);background:var(--accent-soft);border-color:transparent}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--bg)}
+nav.tabs{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);border-bottom:1px solid var(--line)}
+nav.tabs .wrap{display:flex;gap:2px;overflow-x:auto;scrollbar-width:none}
+nav.tabs a{flex:none;padding:12px 12px 11px;color:var(--muted);text-decoration:none;font-weight:600;font-size:14px;border-bottom:2px solid transparent}
+nav.tabs a[aria-current="page"]{color:var(--ink);border-color:var(--accent)}
+nav.tabs a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+main{padding-block:20px 60px}
+.note{margin-bottom:14px;padding:10px 14px;border-radius:10px;background:var(--warn-soft);color:var(--warn);font-size:14px}
+.grid{display:grid;gap:14px}
+.g2{grid-template-columns:repeat(auto-fit,minmax(min(100%,340px),1fr))}
+.g4{grid-template-columns:repeat(auto-fill,minmax(min(100%,160px),1fr))}
+a{color:var(--accent)}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px 18px;box-shadow:var(--shadow);min-width:0}
+.panel h2{margin:0 0 2px;font-size:15px;font-weight:700}
+.panel .hint{color:var(--muted);font-size:13px;margin:0 0 12px}
+.ph{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:10px}
+.hero{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:16px;margin-bottom:14px}
+.hero .lab{color:var(--muted);font-size:13px;text-transform:uppercase;letter-spacing:.06em;font-weight:600}
+.hero .big{font-size:clamp(34px,7vw,52px);font-weight:500;line-height:1.05;margin-top:4px}
+.spark{width:min(100%,360px);height:72px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px;min-width:0}
+.card .lab{color:var(--muted);font-size:12.5px;font-weight:600}
+.card .val{font-size:22px;margin-top:4px}
+.card .meta{font-size:12.5px;color:var(--muted);margin-top:4px;display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.d-up{color:var(--pos)} .d-down{color:var(--neg)}
+.neg{color:var(--neg)} .pos{color:var(--pos)} .muted{color:var(--muted)}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th{text-align:left;font-weight:600;color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.05em;padding:8px 8px;border-bottom:1px solid var(--line);white-space:nowrap}
+td{padding:9px 8px;border-bottom:1px solid var(--line);vertical-align:middle}
+tr:last-child td{border-bottom:0}
+td.r,th.r{text-align:right}
+.scroll{overflow-x:auto}
+.rowlist{display:grid}
+.rowlist .row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 0;border-bottom:1px solid var(--line)}
+.rowlist .row:last-child{border-bottom:0}
+.rowlist .row .l{min-width:0}
+.rowlist .row .l b{font-weight:600}
+.rowlist .row .l small{display:block;color:var(--muted);font-size:12.5px}
+button{font:inherit;cursor:pointer}
+.btn{border:1px solid var(--line);background:var(--surface);color:var(--ink);padding:7px 12px;border-radius:9px;font-size:14px;font-weight:600}
+.btn:hover{background:var(--sunk)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--surface)}
+.btn.primary:hover{filter:brightness(1.07)}
+.btn.small{padding:4px 9px;font-size:13px}
+.btn.ghost{border-color:transparent;background:transparent;color:var(--accent);white-space:nowrap}
+.btn.danger{color:var(--neg)}
+.btns{display:flex;flex-wrap:wrap;gap:8px}
+.bar{height:8px;border-radius:99px;background:var(--sunk);overflow:hidden;border:1px solid var(--line)}
+.bar>i{display:block;height:100%;background:var(--accent);border-radius:99px}
+.bar.over>i{background:var(--neg)}
+.bar.near>i{background:var(--warn)}
+.cat{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,2fr) auto;gap:6px 14px;align-items:center;padding:10px 0;border-bottom:1px solid var(--line)}
+.cat:last-child{border-bottom:0}
+.cat .nm{font-weight:600;background:none;border:0;padding:0;color:var(--ink);text-align:left}
+.cat .nm[aria-pressed="true"]{color:var(--accent);text-decoration:underline;text-underline-offset:3px}
+.cat .fig{font-size:12.5px;color:var(--muted);margin-top:4px}
+.cat input{width:96px}
+input,select,textarea{font:inherit;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:7px 9px;max-width:100%}
+input[type=number]{font-family:var(--f-num)}
+label.f{display:grid;gap:4px;font-size:13px;font-weight:600;color:var(--muted)}
+label.chk{display:flex;gap:8px;align-items:center;font-size:14px;color:var(--ink)}
+.empty{padding:22px 10px;text-align:center;color:var(--muted);font-size:14px}
+.empty b{display:block;color:var(--ink);margin-bottom:4px}
+.seg{display:flex;height:14px;border-radius:99px;overflow:hidden;gap:2px;margin:6px 0 10px}
+.seg i{display:block;height:100%}
+.legend{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:12.5px;color:var(--muted)}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.legend i{width:10px;height:10px;border-radius:3px;display:inline-block}
+.goal{display:grid;gap:8px}
+.goal .top{display:flex;justify-content:space-between;gap:10px;align-items:baseline;flex-wrap:wrap}
+.goal .top b{font-size:15px}
+.kv{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px;font-size:13px}
+.kv div span{display:block;color:var(--muted);font-size:12px}
+.ins{display:grid;grid-template-columns:auto minmax(0,1fr);gap:4px 12px;padding:12px 0;border-bottom:1px solid var(--line)}
+.ins:last-child{border-bottom:0}
+.ins p{margin:2px 0 0;color:var(--muted);font-size:14px}
+.monthnav{display:flex;align-items:center;gap:8px}
+.monthnav b{min-width:120px;text-align:center}
+.chart{width:100%;height:auto;display:block}
+.chart text{fill:var(--muted);font-family:var(--f-ui);font-size:11px}
+.modal-bg{position:fixed;inset:0;background:rgba(10,16,13,.45);display:flex;align-items:flex-end;justify-content:center;z-index:20;padding:16px max(16px,env(safe-area-inset-right,0px)) calc(16px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px))}
+@media (min-width:640px){.modal-bg{align-items:center}}
+.modal{background:var(--surface);color:var(--ink);border:1px solid var(--line);border-radius:14px;width:min(100%,520px);max-height:88vh;overflow:auto;padding:18px}
+.modal h3{margin:0 0 12px;font-size:17px}
+.form{display:grid;gap:12px}
+.form .two{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}
+.form input,.form select{width:100%}
+.toast{position:fixed;left:50%;bottom:calc(18px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:9px 14px;border-radius:10px;font-size:14px;z-index:30;max-width:calc(100% - 32px)}
+.tag{font-size:11.5px;padding:2px 7px;border-radius:6px;background:var(--sunk);color:var(--muted);border:1px solid var(--line);white-space:nowrap}
+.sample{font-size:12px;color:var(--warn)}
+pre.json{white-space:pre-wrap;word-break:break-all;max-height:240px;overflow:auto;background:var(--sunk);padding:10px;border-radius:8px;font-size:12px}
+@media (max-width:560px){.cat{grid-template-columns:1fr auto}.cat .barcell{grid-column:1 / -1;order:3}}
+@media (prefers-reduced-motion:no-preference){.bar>i{transition:width .4s ease}}
+.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:6;background:var(--bg);border-bottom:1px solid var(--line)}
+.topin{display:flex;align-items:center;justify-content:space-between;gap:12px;padding-block:10px 8px}
+.brand2{display:flex;align-items:center;gap:10px;min-width:0}
+.brand2 .mark{width:30px;height:30px;border-radius:9px;background:var(--accent);display:grid;place-items:center;flex:none}
+.brand2 .mark svg{width:18px;height:18px;color:var(--surface)}
+.brand2 b{display:block;font-size:18px;letter-spacing:-.02em;line-height:1.1}
+.brand2 small{display:block;color:var(--muted);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.seg2{display:grid;grid-template-columns:1fr 1fr;background:var(--sunk);border:1px solid var(--line);border-radius:12px;padding:3px;gap:3px;margin-bottom:10px}
+.seg2 a{display:flex;align-items:center;justify-content:center;min-height:44px;border-radius:9px;font-weight:700;font-size:15px;color:var(--muted);text-decoration:none}
+.seg2 a[aria-current="page"]{background:var(--surface);color:var(--ink);box-shadow:var(--shadow)}
+nav.bottom{position:fixed;left:0;right:0;bottom:0;z-index:6;background:var(--surface);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom,0px);padding-left:env(safe-area-inset-left,0px);padding-right:env(safe-area-inset-right,0px)}
+nav.bottom .in{max-width:640px;margin:0 auto;display:grid;grid-template-columns:repeat(5,1fr)}
+nav.bottom a{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;min-height:58px;font-size:11.5px;font-weight:600;color:var(--muted);text-decoration:none}
+nav.bottom a svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+nav.bottom a[aria-current="page"]{color:var(--accent)}
+main{padding-bottom:calc(96px + env(safe-area-inset-bottom,0px))}
+.btn{min-height:40px}
+.btn.small{min-height:34px}
+.chips{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;margin:0 0 14px;padding-bottom:2px}
+.chips button{flex:none;min-height:36px;padding:0 12px;border-radius:999px;border:1px solid var(--line);background:var(--surface);color:var(--ink);font-weight:600;font-size:13.5px}
+.pb h2.sec{font-size:20px;letter-spacing:-.01em;margin:26px 0 10px;scroll-margin-top:140px}
+.pb .panel p{margin:0 0 10px}
+.pb .panel p:last-child{margin-bottom:0}
+.pb ul,.pb ol{margin:0;padding-left:20px;display:grid;gap:6px}
+.pb .lead{font-size:16px;margin:0 0 12px;max-width:65ch}
+.check{display:flex;gap:12px;align-items:flex-start;padding:11px 0;border-bottom:1px solid var(--line);cursor:pointer}
+.check:last-child{border-bottom:0}
+.check input{width:22px;height:22px;flex:none;margin-top:1px;accent-color:var(--accent)}
+.check.done span{color:var(--muted);text-decoration:line-through}
+.ev{display:grid;grid-template-columns:64px minmax(0,1fr) auto;gap:10px;align-items:center;padding:11px 0;border-bottom:1px solid var(--line)}
+.ev:last-child{border-bottom:0}
+.ev .dt{font-family:var(--f-num);font-size:12.5px;color:var(--muted);line-height:1.2}
+.ev .dt b{display:block;font-size:17px;color:var(--ink);font-weight:500}
+.ev.key .dt b{color:var(--accent)}
+.ev.past{opacity:.5}
+.ev small{display:block;color:var(--muted);font-size:13px}
+.quote{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--line)}
+.quote:last-child{border-bottom:0}
+.stairs{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px;align-items:end}
+.stairs div{border:1px solid var(--accent);border-radius:10px;padding:10px 6px;text-align:center;background:var(--accent-soft)}
+.stairs b{display:block;font-size:13.5px}
+.stairs span{display:block;font-size:12.5px;margin-top:4px}
+.stairs small{display:block;font-size:11.5px;color:var(--muted);margin-top:6px;line-height:1.3}
+@media (max-width:560px){.stairs{grid-template-columns:1fr;align-items:stretch}.stairs div{text-align:left;display:grid;grid-template-columns:90px 1fr;gap:2px 10px;margin-left:var(--indent)}.stairs small{grid-column:2;margin-top:0}.stairs span{margin-top:0}}
+.reel{padding:12px 0;border-bottom:1px solid var(--line)}
+.reel:last-child{border-bottom:0}
+.reel p{margin:4px 0 0;color:var(--muted);font-size:14px}
+dl.ref{display:grid;grid-template-columns:minmax(0,1fr);gap:0;margin:0}
+dl.ref div{padding:10px 0;border-bottom:1px solid var(--line)}
+dl.ref div:last-child{border-bottom:0}
+dl.ref dt{font-weight:600;font-size:14px}
+dl.ref dd{margin:2px 0 0;color:var(--muted);font-size:14px}
+.step{display:grid;grid-template-columns:30px minmax(0,1fr);gap:12px;padding:12px 0;border-bottom:1px solid var(--line)}
+.step:last-child{border-bottom:0}
+.step .n{width:30px;height:30px;border-radius:50%;background:var(--accent-soft);color:var(--accent);display:grid;place-items:center;font-weight:700;font-family:var(--f-num)}
+.step p{margin:4px 0 0;color:var(--muted);font-size:14px}
+.menu a{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 0;border-bottom:1px solid var(--line);color:var(--ink);text-decoration:none;min-height:56px}
+.menu a:last-child{border-bottom:0}
+.menu a small{display:block;color:var(--muted);font-size:13px}
+.livebar{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+</style>
+</head>
+<body>
+<header class="top"><div class="wrap">
+  <div class="topin"><div class="brand2"><span class="mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 17l5-5 4 3 7-8"/><path d="M4 21h16"/></svg></span><div style="min-width:0"><b>Dry Powder</b><small id="sub">Loading your numbers…</small></div></div><span class="chip" id="mode">Connecting</span></div>
+  <div class="seg2" id="seg" role="tablist" aria-label="Switch between Money Desk and AI Playbook"></div>
+</div></header>
+<main class="wrap" id="main"><div class="empty"><b>Loading your dashboard</b>Your accounts, budget and goals will appear here.</div></main>
+<nav class="bottom" id="bottom" aria-label="Money Desk sections"></nav>
+<div id="modal-root"></div>
+
+<script>
+(() => {
+"use strict";
+const CATS = ["Groceries","Restaurants","Transportation","Entertainment","Shopping","Subscriptions","School","Travel","Miscellaneous"];
+const ACCT = {checking:"Checking", savings:"Savings", cash:"Cash / wallet", credit:"Credit card"};
+const MONEY = ["overview","budget","investments","goals","more","cashflow","insights","data","install"];
+const ICON = { overview:'<path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/>', budget:'<circle cx="12" cy="12" r="9"/><path d="M12 3v9h9"/>', investments:'<path d="M3 17l6-6 4 4 8-8"/><path d="M15 7h6v6"/>', goals:'<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1"/>', more:'<circle cx="5" cy="12" r="1.2"/><circle cx="12" cy="12" r="1.2"/><circle cx="19" cy="12" r="1.2"/>' };
+const BOTTOM = [["overview","Home"],["budget","Budget"],["investments","Invest"],["goals","Goals"],["more","More"]];
+const AV = "Alpha Vantage MCP Server", QUOTE_TOOL = "GLOBAL_QUOTE";
+const PULSE = [["VOO","S&P 500 (VOO)"],["QQQ","Nasdaq 100 (QQQ)"],["NVDA","Nvidia"],["SOXX","Chip stocks (SOXX)"]];
+const LIVE = { state:"idle", msg:"", running:false, tried:false };
+let lastMoney = "overview";
+const FREQ = {weekly:52/12, biweekly:26/12, monthly:1, yearly:1/12};
+
+// ---------- helpers ----------
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const USD = new Intl.NumberFormat("en-US",{style:"currency",currency:"USD"});
+const USD0 = new Intl.NumberFormat("en-US",{style:"currency",currency:"USD",maximumFractionDigits:0});
+const money = v => (v < 0 ? "−" : "") + USD.format(Math.abs(v || 0));
+const money0 = v => (v < 0 ? "−" : "") + USD0.format(Math.abs(v || 0));
+const signed = v => (v > 0 ? "+" : v < 0 ? "−" : "") + USD.format(Math.abs(v || 0));
+const pct = (v, d = 1) => (isFinite(v) ? (v * 100).toFixed(d) : "0") + "%";
+const r2 = v => Math.round((v + Number.EPSILON) * 100) / 100;
+const num = v => { const n = parseFloat(String(v).replace(/[$,\s]/g, "")); return isFinite(n) ? n : 0; };
+const clone = o => JSON.parse(JSON.stringify(o));
+const uid = p => p + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+const pad = n => String(n).padStart(2, "0");
+const isoDate = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+const today = () => isoDate(new Date());
+const monthKey = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}`;
+const MON = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const monthLabel = k => { const [y, m] = k.split("-").map(Number); return `${MON[m - 1]} ${y}`; };
+const shiftMonth = (k, n) => { const [y, m] = k.split("-").map(Number); return monthKey(new Date(y, m - 1 + n, 1)); };
+const dateLabel = s => { if (!s) return ""; const [y, m, d] = s.split("-").map(Number); return `${MON[m - 1]} ${d}, ${y}`; };
+const lsGet = k => { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } };
+const lsSet = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} };
+
+// ---------- state ----------
+const S = { mode:"loading", profile:null, txns:[], month:monthKey(new Date()), catFilter:null, note:"", loaded:false };
+const emptyProfile = () => ({accounts:[], receivables:[], holdings:[], budgets:{}, goals:[], recurring:[], history:[], pricesAsOf:null, asOf:null, owner:"", checks:{}, quotes:{}, quotesAt:null, quotesTime:""});
+function normalize(p){
+  const e = emptyProfile(); p = p ? clone(p) : {};
+  for (const k of Object.keys(e)) if (p[k] === undefined || p[k] === null && Array.isArray(e[k])) p[k] = e[k];
+  for (const k of ["budgets", "checks", "quotes"]) if (typeof p[k] !== "object" || !p[k] || Array.isArray(p[k])) p[k] = {};
+  return p;
+}
+
+// ---------- calculations (pure) ----------
+const sumBy = (arr, f) => arr.reduce((s, x) => s + (f(x) || 0), 0);
+function totals(p){
+  const acc = t => sumBy(p.accounts.filter(a => a.type === t), a => num(a.balance));
+  const checking = acc("checking"), savings = acc("savings"), cash = acc("cash"), credit = acc("credit");
+  const inv = sumBy(p.holdings, h => num(h.shares) * num(h.price));
+  const cost = sumBy(p.holdings, h => num(h.cost));
+  const recv = sumBy(p.receivables, r => num(r.amount));
+  const liquid = checking + savings + cash;
+  return { checking, savings, cash, credit, liquid, inv, cost, recv,
+    available: liquid - credit, netWorth: liquid + inv + recv - credit };
+}
+const txMonth = (txns, k) => txns.filter(t => (t.date || "").startsWith(k));
+function monthFlow(txns, k){
+  const m = txMonth(txns, k);
+  const exp = sumBy(m.filter(t => t.kind === "expense"), t => num(t.amount));
+  const inc = sumBy(m.filter(t => t.kind === "income"), t => num(t.amount));
+  return { exp: r2(exp), inc: r2(inc), net: r2(inc - exp), count: m.length };
+}
+function spendByCat(txns, k){
+  const out = Object.fromEntries(CATS.map(c => [c, 0]));
+  for (const t of txMonth(txns, k)) if (t.kind === "expense") out[CATS.includes(t.category) ? t.category : "Miscellaneous"] += num(t.amount);
+  for (const c of CATS) out[c] = r2(out[c]);
+  return out;
+}
+const recurringMonthly = (p, kind) => r2(sumBy(p.recurring.filter(r => r.kind === kind), r => num(r.amount) * (FREQ[r.freq] || 1)));
+function avgMonthlyExpenses(p, txns){
+  const cur = monthKey(new Date()); const vals = [];
+  for (let i = 1; i <= 3; i++){ const f = monthFlow(txns, shiftMonth(cur, -i)); if (f.count) vals.push(f.exp); }
+  if (vals.length) return { v: r2(sumBy(vals, x => x) / vals.length), basis: `average of your last ${vals.length} tracked month${vals.length > 1 ? "s" : ""}` };
+  const b = sumBy(Object.values(p.budgets), v => num(v));
+  if (b > 0) return { v: r2(b), basis: "your monthly budget limits" };
+  const r = recurringMonthly(p, "expense");
+  if (r > 0) return { v: r, basis: "your recurring expenses" };
+  return { v: null, basis: "" };
+}
+function goalState(g, p, txns){
+  const T = totals(p); let current = 0, target = g.target == null || g.target === "" ? null : num(g.target), label = "";
+  if (g.kind === "account"){ const a = p.accounts.find(x => x.id === g.account); current = a ? num(a.balance) : 0; label = a ? `Tracks ${a.name}` : "Linked account missing"; }
+  else if (g.kind === "debt"){ target = num(g.start); current = Math.max(0, target - T.credit); label = `Paid down from ${money(target)}; ${money(T.credit)} still owed`; }
+  else if (g.kind === "spending"){ const s = spendByCat(txns, monthKey(new Date()))[g.category] || 0; current = s; label = `${g.category} this month`; }
+  else { current = num(g.current); label = "Updated by you"; }
+  let progress = null, remaining = null;
+  if (target != null && target > 0){
+    if (g.kind === "spending"){ remaining = r2(target - current); progress = Math.min(1, current / target); }
+    else { remaining = r2(Math.max(0, target - current)); progress = Math.min(1, current / target); }
+  }
+  let monthsLeft = null, perMonth = null;
+  if (g.date){ const [y, m] = g.date.split("-").map(Number); const n = new Date(); monthsLeft = Math.max(0, (y - n.getFullYear()) * 12 + (m - 1 - n.getMonth())); if (remaining != null && g.kind !== "spending") perMonth = remaining / Math.max(1, monthsLeft); }
+  return { current: r2(current), target, progress, remaining, monthsLeft, perMonth, label };
+}
+function snapshotHistory(p){
+  const T = totals(p); const e = { date: today(), nw: r2(T.netWorth), liquid: r2(T.liquid), inv: r2(T.inv), credit: r2(T.credit), recv: r2(T.recv), available: r2(T.available) };
+  const h = p.history || []; if (h.length && h[h.length - 1].date === e.date) h[h.length - 1] = e; else h.push(e);
+  p.history = h.slice(-365);
+}
+function prevSnap(p){ const h = p.history || []; const t = today(); for (let i = h.length - 1; i >= 0; i--) if (h[i].date < t) return h[i]; return null; }
+
+// ---------- storage ----------
+let profRef = null, txCol = null, writing = false, pending = null;
+function setMode(m, note){ S.mode = m; if (note !== undefined) S.note = note; }
+async function boot(){
+  renderAll();
+  const db = null;
+  if (!db){ setMode("local", ""); S.profile = normalize(lsGet("md.profile")); S.txns = lsGet("md.txns") || []; S.loaded = true; renderAll(); if (!LIVE.tried){ LIVE.tried = true; refreshPrices(false); } return; }
+  setMode("connecting");
+  profRef = db.doc("fin/profile"); txCol = db.collection("txns");
+  const timer = setTimeout(() => { if (S.mode === "connecting"){ S.note = "Still reaching your saved data. What you see may be out of date."; renderAll(); } }, 10000);
+  profRef.onSnapshot(s => {
+    S.profile = normalize(s.exists ? s.data() : null); S.loaded = true;
+    if (!s.metadata.fromCache){ clearTimeout(timer); setMode("db", ""); }
+    renderAll();
+    if (!s.metadata.fromCache && !LIVE.tried){ LIVE.tried = true; refreshPrices(false); }
+  }, e => { clearTimeout(timer); setMode("error", `Saved data could not be loaded (${e.code}). Changes will not be kept.`); S.profile = S.profile || emptyProfile(); S.loaded = true; renderAll(); });
+  txCol.orderBy("date", "desc").limit(1000).onSnapshot(q => {
+    S.txns = q.docs.map(d => Object.assign({}, d.data(), { id: d.id })); renderAll();
+  }, e => { S.note = `Transactions could not be loaded (${e.code}).`; renderAll(); });
+}
+function saveErr(e){ return e && e.code === "quota_exceeded" ? "Storage is full. Delete old transactions to save more." : "That change could not be saved. Try again in a moment."; }
+function commit(p){
+  p.asOf = today(); snapshotHistory(p); S.profile = p; renderAll();
+  if (S.mode === "local"){ lsSet("md.profile", p); return; }
+  if (!profRef) return;
+  pending = p; if (!writing) flush();
+}
+async function flush(){
+  writing = true;
+  while (pending){ const p = pending; pending = null; try { await profRef.set(clone(p)); } catch (e) { toast(saveErr(e)); } }
+  writing = false;
+}
+function sortTx(){ S.txns.sort((a, b) => (b.date || "").localeCompare(a.date || "") || (b.createdAt || 0) - (a.createdAt || 0)); }
+async function putTx(t){
+  const i = S.txns.findIndex(x => x.id === t.id); if (i >= 0) S.txns[i] = t; else S.txns.push(t); sortTx();
+  if (S.mode === "local"){ lsSet("md.txns", S.txns); return; }
+  if (!txCol) return;
+  const body = clone(t); delete body.id;
+  try { await txCol.doc(t.id).set(body); } catch (e) { toast(saveErr(e)); }
+}
+async function dropTx(id){
+  S.txns = S.txns.filter(x => x.id !== id);
+  if (S.mode === "local"){ lsSet("md.txns", S.txns); return; }
+  if (!txCol) return;
+  try { await txCol.doc(id).delete(); } catch (e) { toast(saveErr(e)); }
+}
+// apply a transaction to an account balance (sign 1 = apply, -1 = undo)
+function applyTx(p, t, sign){
+  if (!t.applied || !t.account || t.kind === "transfer") return;
+  const a = p.accounts.find(x => x.id === t.account); if (!a) return;
+  const amt = num(t.amount) * sign;
+  const outflow = t.kind === "expense";
+  if (a.type === "credit") a.balance = r2(num(a.balance) + (outflow ? amt : -amt));
+  else a.balance = r2(num(a.balance) + (outflow ? -amt : amt));
+}
+
+// ---------- ui primitives ----------
+let toastTimer;
+function toast(msg){ let el = $(".toast"); if (!el){ el = document.createElement("div"); el.className = "toast"; el.setAttribute("role", "status"); document.body.appendChild(el); } el.textContent = msg; clearTimeout(toastTimer); toastTimer = setTimeout(() => el.remove(), 2600); }
+function closeModal(){ $("#modal-root").innerHTML = ""; }
+function fieldHTML(f){
+  const id = "f_" + f.id, v = f.value ?? "";
+  if (f.type === "select") return `<label class="f" for="${id}">${esc(f.label)}<select id="${id}" name="${f.id}">${f.options.map(o => `<option value="${esc(o[0])}"${String(o[0]) === String(v) ? " selected" : ""}>${esc(o[1])}</option>`).join("")}</select></label>`;
+  if (f.type === "checkbox") return `<label class="chk" for="${id}"><input type="checkbox" id="${id}" name="${f.id}"${v ? " checked" : ""}> ${esc(f.label)}</label>`;
+  if (f.type === "note") return `<p class="muted" style="margin:0;font-size:13px">${esc(f.label)}</p>`;
+  return `<label class="f" for="${id}">${esc(f.label)}<input id="${id}" name="${f.id}" type="${f.type || "text"}" value="${esc(v)}"${f.type === "number" ? ` step="${f.step || "0.01"}" inputmode="decimal"` : ""}${f.required ? " required" : ""}${f.placeholder ? ` placeholder="${esc(f.placeholder)}"` : ""}></label>`;
+}
+function openForm({ title, fields, submit = "Save", onSubmit, onDelete, deleteLabel = "Delete" }){
+  const groups = []; let pair = [];
+  for (const f of fields){ if (f.half){ pair.push(f); if (pair.length === 2){ groups.push(`<div class="two">${pair.map(fieldHTML).join("")}</div>`); pair = []; } } else { if (pair.length){ groups.push(`<div class="two">${pair.map(fieldHTML).join("")}</div>`); pair = []; } groups.push(fieldHTML(f)); } }
+  if (pair.length) groups.push(`<div class="two">${pair.map(fieldHTML).join("")}</div>`);
+  $("#modal-root").innerHTML = `<div class="modal-bg" data-act="modal-bg"><div class="modal" role="dialog" aria-modal="true" aria-labelledby="mtitle"><h3 id="mtitle">${esc(title)}</h3>
+    <form class="form" id="mform">${groups.join("")}<div class="btns" style="justify-content:space-between;margin-top:4px">
+    <div>${onDelete ? `<button type="button" class="btn danger" id="mdel">${esc(deleteLabel)}</button>` : ""}</div>
+    <div class="btns"><button type="button" class="btn" data-act="close">Cancel</button><button type="submit" class="btn primary">${esc(submit)}</button></div></div></form></div></div>`;
+  const form = $("#mform"); const first = form.querySelector("input,select"); if (first) first.focus();
+  form.addEventListener("submit", ev => { ev.preventDefault(); const vals = {}; for (const f of fields){ const el = form.elements[f.id]; if (!el) continue; vals[f.id] = f.type === "checkbox" ? el.checked : el.value; } if (onSubmit(vals) !== false) closeModal(); });
+  if (onDelete){ const b = $("#mdel"); b.addEventListener("click", () => { if (b.dataset.armed){ onDelete(); closeModal(); } else { b.dataset.armed = "1"; b.textContent = "Tap again to confirm"; } }); }
+}
+document.addEventListener("keydown", e => { if (e.key === "Escape" && $("#modal-root").innerHTML) closeModal(); });
+
+// ---------- charts ----------
+function sparkline(hist, key){
+  const pts = hist.filter(h => h[key] != null).slice(-60); if (pts.length < 2) return "";
+  const W = 360, H = 72, vals = pts.map(p => p[key]); const lo = Math.min(...vals), hi = Math.max(...vals), span = hi - lo || 1;
+  const X = i => 4 + i * (W - 8) / (pts.length - 1), Y = v => H - 8 - (v - lo) / span * (H - 16);
+  const d = pts.map((p, i) => `${i ? "L" : "M"}${X(i).toFixed(1)} ${Y(p[key]).toFixed(1)}`).join("");
+  const last = pts[pts.length - 1];
+  return `<svg class="spark" viewBox="0 0 ${W} ${H}" role="img" aria-label="Net worth trend over ${pts.length} saved days"><path d="${d}L${X(pts.length - 1)} ${H}L4 ${H}Z" fill="var(--accent-soft)"/><path d="${d}" fill="none" stroke="var(--accent)" stroke-width="2"/><circle cx="${X(pts.length - 1)}" cy="${Y(last[key])}" r="3.5" fill="var(--accent)"/><text x="4" y="12" style="fill:var(--muted);font-size:11px;font-family:var(--f-ui)">${dateLabel(pts[0].date)}</text></svg>`;
+}
+function niceMax(v){ if (v <= 0) return 100; const e = Math.pow(10, Math.floor(Math.log10(v))); const f = v / e; return (f <= 1 ? 1 : f <= 2 ? 2 : f <= 5 ? 5 : 10) * e; }
+function flowChart(txns, endKey){
+  const keys = Array.from({ length: 6 }, (_, i) => shiftMonth(endKey, i - 5));
+  const rows = keys.map(k => ({ k, ...monthFlow(txns, k) }));
+  const max = niceMax(Math.max(...rows.map(r => Math.max(r.inc, r.exp)), 1));
+  const W = 680, H = 250, L = 56, B = 52, T = 16, cw = (W - L - 12) / 6, bw = Math.min(26, cw / 3.2);
+  const Y = v => T + (H - T - B) * (1 - v / max);
+  const ticks = [0, max / 2, max];
+  let s = `<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Income and expenses for the last six months">`;
+  for (const t of ticks) s += `<line x1="${L}" x2="${W - 8}" y1="${Y(t)}" y2="${Y(t)}" stroke="var(--line)"/><text x="${L - 8}" y="${Y(t) + 4}" text-anchor="end">${money0(t)}</text>`;
+  rows.forEach((r, i) => {
+    const cx = L + cw * i + cw / 2;
+    s += `<rect x="${cx - bw - 2}" y="${Y(r.inc)}" width="${bw}" height="${Y(0) - Y(r.inc)}" rx="3" fill="var(--accent)"><title>${monthLabel(r.k)} income: ${money(r.inc)}</title></rect>`;
+    s += `<rect x="${cx + 2}" y="${Y(r.exp)}" width="${bw}" height="${Y(0) - Y(r.exp)}" rx="3" fill="var(--muted)" fill-opacity=".55"><title>${monthLabel(r.k)} expenses: ${money(r.exp)}</title></rect>`;
+    s += `<text x="${cx}" y="${H - B + 18}" text-anchor="middle">${MON[Number(r.k.slice(5)) - 1]}</text>`;
+    if (r.count) s += `<text x="${cx}" y="${H - B + 34}" text-anchor="middle" style="fill:${r.net >= 0 ? "var(--pos)" : "var(--neg)"}">${r.net >= 0 ? "+" : "−"}${USD0.format(Math.abs(r.net))}</text>`;
+  });
+  s += `<line x1="${L}" x2="${W - 8}" y1="${Y(0)}" y2="${Y(0)}" stroke="var(--muted)"/></svg>`;
+  return s;
+}
+
+// ---------- render ----------
+function route(){ const h = (location.hash || "").slice(1); return h === "playbook" || MONEY.includes(h) ? h : "overview"; }
+function renderAll(){
+  const r = route();
+  if (r !== "playbook") lastMoney = r;
+  $("#seg").innerHTML = `<a href="#${lastMoney}" role="tab"${r !== "playbook" ? ' aria-current="page" aria-selected="true"' : ' aria-selected="false"'}>Money Desk</a><a href="#playbook" role="tab"${r === "playbook" ? ' aria-current="page" aria-selected="true"' : ' aria-selected="false"'}>AI Playbook</a>`;
+  const bot = $("#bottom"); bot.hidden = r === "playbook";
+  const active = ["cashflow","insights","data","install"].includes(r) ? "more" : r;
+  bot.innerHTML = `<div class="in">${BOTTOM.map(([k, l]) => `<a href="#${k}"${k === active ? ' aria-current="page"' : ""}><svg viewBox="0 0 24 24" aria-hidden="true">${ICON[k]}</svg>${l}</a>`).join("")}</div>`;
+  const m = $("#mode");
+  const modes = { loading:["Loading", ""], connecting:["Connecting", ""], db:["Saved to your account", "ok"], local:["Saved on this phone", "ok"], error:["Not saving", "crit"] };
+  const [ml, mc] = modes[S.mode] || modes.loading; m.textContent = ml; m.className = "chip " + mc;
+  if (!S.loaded || !S.profile){ return; }
+  const p = S.profile;
+  $("#sub").textContent = r === "playbook" ? "Getting ready for an AI bubble" : (p.asOf ? `Balances as of ${dateLabel(p.asOf)}` : "Add your accounts to get started");
+  const view = { overview, budget, cashflow, investments, goals, insights, data, more, install, playbook }[r];
+  const scroll = window.scrollY;
+  $("#main").innerHTML = (S.note ? `<div class="note" role="status">${esc(S.note)}</div>` : "") + view(p);
+  window.scrollTo(0, scroll);
+}
+window.addEventListener("hashchange", () => { renderAll(); window.scrollTo(0, 0); });
+
+function delta(cur, prev, invert){
+  const ps = prevSnap(S.profile);
+  if (prev == null || !ps) return "";
+  const d = r2(cur - prev); if (!d) return `<span class="muted">No change since ${dateLabel(ps.date)}</span>`;
+  const good = invert ? d < 0 : d > 0;
+  return `<span class="${good ? "d-up" : "d-down"}">${d > 0 ? "▲" : "▼"} ${USD.format(Math.abs(d))}</span><span>since ${dateLabel(ps.date)}</span>`;
+}
+function overview(p){
+  const T = totals(p), prev = prevSnap(p), cur = monthKey(new Date()), f = monthFlow(S.txns, cur);
+  const expInc = recurringMonthly(p, "income"), avg = avgMonthlyExpenses(p, S.txns);
+  if (!p.accounts.length && !p.holdings.length) return `<div class="panel"><div class="empty"><b>No accounts yet</b>Add your checking, savings and credit cards to see your net worth.<div class="btns" style="justify-content:center;margin-top:12px"><button class="btn primary" data-act="acct-add">Add an account</button></div></div></div>`;
+  const card = (lab, val, meta, cls = "") => `<div class="card"><div class="lab">${lab}</div><div class="val num ${cls}">${val}</div><div class="meta">${meta}</div></div>`;
+  const spendMeta = f.count ? `${f.count} transactions in ${monthLabel(cur)}` : (avg.v != null ? `None tracked yet; plan is ${money(avg.v)} from ${avg.basis}` : `None tracked yet. <a href="#budget">Add one</a>`);
+  let h = `<section class="hero"><div><div class="lab">Net worth</div><div class="big num">${money(T.netWorth)}</div><div class="card meta" style="border:0;padding:0;background:none">${delta(T.netWorth, prev && prev.nw) || '<span class="muted">Change will show after your next update on a later day</span>'}</div></div>${sparkline(p.history, "nw")}</section>`;
+  h += `<div class="grid g4" style="margin-bottom:14px">`;
+  h += card("Checking and savings", money(T.checking + T.savings), `Plus ${money(T.cash)} in cash and wallets`);
+  h += card("Available cash", money(T.available), `Cash left if you paid off every card today`, T.available < 0 ? "neg" : "");
+  h += card("Investments", money(T.inv), `${signed(T.inv - T.cost)} unrealized (${pct(T.cost ? (T.inv - T.cost) / T.cost : 0)})`);
+  h += card("Credit cards owed", money(T.credit), delta(T.credit, prev && prev.credit, true) || `${p.accounts.filter(a => a.type === "credit").length} cards`, T.credit > 0 ? "neg" : "");
+  h += card("Owed to you", money(T.recv), `${p.receivables.length} ${p.receivables.length === 1 ? "person" : "people"}`);
+  h += card("Monthly income", money(f.inc || expInc), f.inc ? `Tracked in ${monthLabel(cur)}; expected ${money(expInc)}` : `Expected from recurring pay`);
+  h += card("Monthly expenses", money(f.exp), spendMeta);
+  h += card("Net this month", signed(f.inc - f.exp), f.count ? `Income minus expenses` : `Add transactions to track`, f.inc - f.exp < 0 ? "neg" : "pos");
+  h += `</div><div class="grid g2">`;
+  h += `<div class="panel"><div class="ph"><div><h2>Accounts</h2><p class="hint">Tap a balance to update it.</p></div><button class="btn small" data-act="acct-add">Add account</button></div><div class="rowlist">`;
+  for (const t of ["checking", "savings", "cash", "credit"]) for (const a of p.accounts.filter(x => x.type === t)) h += `<div class="row"><div class="l"><b>${esc(a.name)}</b><small>${ACCT[a.type]}${a.note ? " · " + esc(a.note) : ""}</small></div><button class="btn ghost num ${a.type === "credit" && num(a.balance) > 0 ? "neg" : ""}" data-act="acct-edit" data-id="${a.id}" aria-label="Edit ${esc(a.name)}">${a.type === "credit" && num(a.balance) > 0 ? "−" : ""}${USD.format(Math.abs(num(a.balance)))}</button></div>`;
+  h += `</div></div>`;
+  h += `<div class="panel"><div class="ph"><div><h2>Owed to you</h2><p class="hint">Money friends owe you counts toward net worth.</p></div><button class="btn small" data-act="recv-add">Add</button></div><div class="rowlist">`;
+  h += p.receivables.length ? p.receivables.map(r => `<div class="row"><div class="l"><b>${esc(r.name)}</b>${r.note ? `<small>${esc(r.note)}</small>` : ""}</div><div class="btns"><button class="btn ghost num" data-act="recv-edit" data-id="${r.id}">${money(num(r.amount))}</button><button class="btn small" data-act="recv-paid" data-id="${r.id}">Mark paid</button></div></div>`).join("") : `<div class="empty">Nobody owes you money right now.</div>`;
+  h += `</div><h2 style="margin-top:18px">Goals at a glance</h2><div class="rowlist">`;
+  h += p.goals.slice(0, 4).map(g => { const s = goalState(g, p, S.txns); return `<div class="row" style="display:grid;gap:6px"><div style="display:flex;justify-content:space-between;gap:8px"><b style="font-weight:600">${esc(g.name)}</b><span class="num muted">${s.progress != null ? pct(s.progress, 0) : "Set target"}</span></div><div class="bar${g.kind === "spending" && s.progress >= 1 ? " over" : ""}"><i style="width:${(s.progress || 0) * 100}%"></i></div></div>`; }).join("") || `<div class="empty">No goals yet. <a href="#goals">Add one</a></div>`;
+  h += `</div></div></div>`;
+  return h;
+}
+
+function budget(p){
+  const k = S.month, spend = spendByCat(S.txns, k);
+  const lim = c => num(p.budgets[c]);
+  const totalLim = sumBy(CATS, lim), totalSpent = sumBy(CATS, c => spend[c]);
+  let h = `<div class="ph"><div class="monthnav"><button class="btn small" data-act="month" data-n="-1" aria-label="Previous month">‹</button><b>${monthLabel(k)}</b><button class="btn small" data-act="month" data-n="1" aria-label="Next month">›</button></div><div class="btns"><button class="btn" data-act="import-csv">Import card statement</button><button class="btn primary" data-act="tx-add">Add transaction</button></div></div>`;
+  h += `<div class="grid g4" style="margin-bottom:14px">
+    <div class="card"><div class="lab">Spent</div><div class="val num">${money(totalSpent)}</div><div class="meta">${txMonth(S.txns, k).filter(t => t.kind === "expense").length} expenses</div></div>
+    <div class="card"><div class="lab">Budgeted</div><div class="val num">${totalLim ? money(totalLim) : "Not set"}</div><div class="meta">${totalLim ? "Across " + CATS.filter(c => lim(c) > 0).length + " categories" : "Set limits below"}</div></div>
+    <div class="card"><div class="lab">Remaining</div><div class="val num ${totalLim - totalSpent < 0 ? "neg" : ""}">${totalLim ? money(totalLim - totalSpent) : "—"}</div><div class="meta">${totalLim ? pct(totalSpent / totalLim, 0) + " of budget used" : "Needs limits"}</div></div></div>`;
+  h += `<div class="grid g2"><div class="panel"><h2>Categories</h2><p class="hint">Type a monthly limit for each category. Tap a name to filter the list.</p>`;
+  for (const c of CATS){
+    const L = lim(c), s = spend[c], ratio = L ? s / L : 0, over = L && s > L;
+    h += `<div class="cat"><div><button class="nm" data-act="cat" data-c="${c}" aria-pressed="${S.catFilter === c}">${c}</button><div class="fig num">${money(s)}${L ? ` of ${money(L)}` : ""}</div></div>
+    <div class="barcell"><div class="bar${over ? " over" : ratio > .85 ? " near" : ""}" role="progressbar" aria-label="${c} budget used" aria-valuenow="${Math.round(ratio * 100)}" aria-valuemin="0" aria-valuemax="100"><i style="width:${Math.min(1, ratio) * 100}%"></i></div><div class="fig">${L ? (over ? `<span class="neg">Over by ${money(s - L)}</span>` : `${money(L - s)} left`) : "No limit set"}</div></div>
+    <label><span class="sr" style="position:absolute;left:-9999px">${c} limit</span><input type="number" min="0" step="1" inputmode="decimal" placeholder="Limit" value="${L || ""}" data-act="limit" data-c="${c}" id="lim_${c}"></label></div>`;
+  }
+  h += `</div><div class="panel"><div class="ph"><div><h2>Transactions</h2><p class="hint">${S.catFilter ? `Showing ${esc(S.catFilter)} only. <button class="btn ghost small" data-act="cat" data-c="${S.catFilter}">Show all</button>` : `Everything in ${monthLabel(k)}.`}</p></div></div>`;
+  const list = txMonth(S.txns, k).filter(t => !S.catFilter || (t.kind === "expense" && t.category === S.catFilter));
+  h += list.length ? `<div class="rowlist">${list.map(txRow).join("")}</div>` : `<div class="empty"><b>Nothing here yet</b>Add a transaction, or import a CSV statement from Chase or Capital One.</div>`;
+  h += `</div></div>`;
+  return h;
+}
+function txRow(t){
+  const acct = S.profile.accounts.find(a => a.id === t.account);
+  const amt = t.kind === "income" ? `<span class="pos">+${USD.format(num(t.amount))}</span>` : t.kind === "transfer" ? `<span class="muted">${USD.format(num(t.amount))}</span>` : (num(t.amount) < 0 ? `<span class="pos">+${USD.format(-num(t.amount))}</span>` : `−${USD.format(num(t.amount))}`);
+  return `<div class="row"><div class="l"><b>${esc(t.desc || "Untitled")}</b><small>${dateLabel(t.date)} · ${t.kind === "expense" ? esc(t.category) : t.kind === "income" ? "Income" : "Transfer"}${acct ? " · " + esc(acct.name) : ""}${t.source === "import" ? ' · <span class="tag">imported</span>' : ""}</small></div><button class="btn ghost num" data-act="tx-edit" data-id="${t.id}" aria-label="Edit ${esc(t.desc)}">${amt}</button></div>`;
+}
+
+function cashflow(p){
+  const cur = monthKey(new Date()), f = monthFlow(S.txns, cur);
+  const ei = recurringMonthly(p, "income"), ee = recurringMonthly(p, "expense");
+  const transfers = sumBy(txMonth(S.txns, cur).filter(t => t.kind === "transfer"), t => num(t.amount));
+  let h = `<div class="grid g4" style="margin-bottom:14px">
+    <div class="card"><div class="lab">Income, ${monthLabel(cur)}</div><div class="val num pos">${money(f.inc)}</div><div class="meta">Expected ${money(ei)} from recurring</div></div>
+    <div class="card"><div class="lab">Expenses, ${monthLabel(cur)}</div><div class="val num">${money(f.exp)}</div><div class="meta">Recurring bills ${money(ee)}/month</div></div>
+    <div class="card"><div class="lab">Net cash flow</div><div class="val num ${f.net < 0 ? "neg" : "pos"}">${signed(f.net)}</div><div class="meta">Transfers of ${money(transfers)} not counted</div></div>
+    <div class="card"><div class="lab">Expected monthly surplus</div><div class="val num ${ei - ee < 0 ? "neg" : ""}">${signed(ei - ee)}</div><div class="meta">Recurring income minus recurring bills</div></div></div>`;
+  h += `<div class="grid g2"><div class="panel"><h2>Income vs expenses</h2><p class="hint">Last six months from your transactions. Net shown under each month.</p>${flowChart(S.txns, cur)}<div class="legend"><span><i style="background:var(--accent)"></i>Income</span><span><i style="background:var(--muted);opacity:.55"></i>Expenses</span></div></div>`;
+  h += `<div class="panel"><div class="ph"><div><h2>Recurring income and bills</h2><p class="hint">Paychecks, rent, subscriptions. Used for expected monthly totals.</p></div><button class="btn small" data-act="rec-add">Add</button></div><div class="rowlist">`;
+  h += p.recurring.length ? p.recurring.map(r => `<div class="row"><div class="l"><b>${esc(r.name)}</b><small>${r.kind === "income" ? "Income" : esc(r.category || "Bill")} · ${r.freq} · ${money(num(r.amount) * (FREQ[r.freq] || 1))}/month</small></div><button class="btn ghost num ${r.kind === "income" ? "pos" : ""}" data-act="rec-edit" data-id="${r.id}">${r.kind === "income" ? "+" : "−"}${USD.format(num(r.amount))}</button></div>`).join("") : `<div class="empty">No recurring items yet.</div>`;
+  h += `</div></div></div>`;
+  return h;
+}
+
+function investments(p){
+  const T = totals(p);
+  const groups = {}; for (const h of p.holdings){ (groups[h.account || "Other"] ||= []).push(h); }
+  const shades = [1, .78, .58, .42, .3, .2];
+  let h = `<div class="grid g4" style="margin-bottom:14px">
+    <div class="card"><div class="lab">Portfolio value</div><div class="val num">${money(T.inv)}</div><div class="meta">${p.holdings.length} positions</div></div>
+    <div class="card"><div class="lab">Total cost basis</div><div class="val num">${money(T.cost)}</div><div class="meta">What you paid in</div></div>
+    <div class="card"><div class="lab">Unrealized gain</div><div class="val num ${T.inv - T.cost < 0 ? "neg" : "pos"}">${signed(T.inv - T.cost)}</div><div class="meta">${pct(T.cost ? (T.inv - T.cost) / T.cost : 0)} on cost</div></div>
+    <div class="card"><div class="lab">Prices as of</div><div class="val" style="font-size:18px">${p.pricesAsOf ? dateLabel(p.pricesAsOf) : "Not set"}</div><div class="meta">${p.quotesAt === p.pricesAsOf ? "Live quotes" : "Entered by you"}</div></div></div>`;
+  h = liveBar() + h;
+  h += `<div class="panel" style="margin-bottom:14px"><h2>Where it sits</h2><p class="hint">Share of your invested money by account.</p><div class="seg">${Object.entries(groups).map(([g, hs], i) => { const v = sumBy(hs, x => num(x.shares) * num(x.price)); return `<i style="width:${T.inv ? v / T.inv * 100 : 0}%;background:var(--accent);opacity:${shades[i % shades.length]}" title="${esc(g)}: ${money(v)}"></i>`; }).join("")}</div><div class="legend">${Object.entries(groups).map(([g, hs], i) => { const v = sumBy(hs, x => num(x.shares) * num(x.price)); return `<span><i style="background:var(--accent);opacity:${shades[i % shades.length]}"></i>${esc(g)} <b class="num" style="color:var(--ink)">${money(v)}</b> (${pct(T.inv ? v / T.inv : 0, 0)})</span>`; }).join("")}</div></div>`;
+  h += `<div class="panel"><div class="ph"><div><h2>Holdings</h2><p class="hint">Prices update from Alpha Vantage when you open the app each day. Tap a row to edit shares, cost or price.</p></div><div class="btns"><button class="btn small" data-act="prices-date">Mark prices as of today</button><button class="btn small primary" data-act="hold-add">Add holding</button></div></div>`;
+  if (!p.holdings.length) return h + `<div class="empty"><b>No holdings yet</b>Add each stock or fund with its shares and what you paid.</div></div>`;
+  h += `<div class="scroll"><table><thead><tr><th>Holding</th><th class="r">Shares</th><th class="r">Avg cost</th><th class="r">Cost basis</th><th class="r">Price</th><th class="r">Value</th><th class="r">Gain</th></tr></thead><tbody>`;
+  for (const [g, hs] of Object.entries(groups)){
+    const v = sumBy(hs, x => num(x.shares) * num(x.price)), c = sumBy(hs, x => num(x.cost));
+    h += `<tr><td colspan="7" style="background:var(--sunk);font-weight:700">${esc(g)} <span class="muted num" style="font-weight:400">· ${money(v)} · ${signed(v - c)}</span></td></tr>`;
+    for (const x of hs.slice().sort((a, b) => num(b.shares) * num(b.price) - num(a.shares) * num(a.price))){
+      const val = num(x.shares) * num(x.price), gain = val - num(x.cost), gp = num(x.cost) ? gain / num(x.cost) : 0;
+      h += `<tr data-act="hold-edit" data-id="${x.id}" style="cursor:pointer"><td><b>${esc(x.ticker)}</b><div class="muted" style="font-size:12px">${esc(x.name || "")}</div></td><td class="r num">${+num(x.shares).toFixed(4)}</td><td class="r num">${num(x.shares) ? money(num(x.cost) / num(x.shares)) : "—"}</td><td class="r num">${money(num(x.cost))}</td><td class="r num">${money(num(x.price))}</td><td class="r num">${money(val)}</td><td class="r num ${gain < 0 ? "neg" : gain > 0 ? "pos" : ""}">${signed(gain)}<div style="font-size:12px">${pct(gp)}</div></td></tr>`;
+    }
+  }
+  h += `</tbody></table></div></div>`;
+  return h;
+}
+
+function goals(p){
+  let h = `<div class="ph"><p class="hint" style="margin:0;max-width:60ch">Goals from your AI bubble playbook. Linked goals update themselves from your balances and spending.</p><button class="btn primary" data-act="goal-add">Add goal</button></div><div class="grid g2">`;
+  if (!p.goals.length) h += `<div class="panel"><div class="empty"><b>No goals yet</b>Start with an emergency fund or paying off a card.</div></div>`;
+  for (const g of p.goals){
+    const s = goalState(g, p, S.txns), spend = g.kind === "spending";
+    h += `<div class="panel goal"><div class="top"><b>${esc(g.name)}</b><button class="btn small" data-act="goal-edit" data-id="${g.id}">Edit</button></div>
+      ${g.why ? `<p class="hint" style="margin:0">${esc(g.why)}</p>` : ""}
+      <div class="bar${spend && s.progress >= 1 ? " over" : spend && s.progress > .85 ? " near" : ""}" role="progressbar" aria-label="${esc(g.name)} progress" aria-valuenow="${Math.round((s.progress || 0) * 100)}" aria-valuemin="0" aria-valuemax="100"><i style="width:${(s.progress || 0) * 100}%"></i></div>
+      <div class="kv num"><div><span>Target</span>${s.target != null ? money(s.target) + (spend ? "/mo" : "") : `<button class="btn ghost small" data-act="goal-edit" data-id="${g.id}">Set target</button>`}</div><div><span>${spend ? "Spent" : "Current"}</span>${money(s.current)}</div><div><span>${spend ? "Left this month" : "Remaining"}</span>${s.remaining != null ? money(s.remaining) : "—"}</div><div><span>Complete</span>${s.progress != null ? pct(s.progress, 0) : "—"}</div><div><span>Target date</span>${g.date ? dateLabel(g.date) : "None"}</div>${s.perMonth != null && s.remaining > 0 ? `<div><span>Needed per month</span>${money(s.perMonth)}</div>` : ""}</div>
+      <div class="muted" style="font-size:12.5px">${esc(s.label)}</div></div>`;
+  }
+  return h + `</div>`;
+}
+
+function buildInsights(p){
+  const T = totals(p), out = [], cur = monthKey(new Date()), spend = spendByCat(S.txns, cur), f = monthFlow(S.txns, cur), avg = avgMonthlyExpenses(p, S.txns);
+  if (T.credit > 0){
+    const after = T.liquid - T.credit;
+    out.push({ lv: after < (avg.v || 0) ? "crit" : "warn", t: `Pay off ${money(T.credit)} in credit card balances`, b: `If carried at a typical 24% APR, that costs about ${money(T.credit * 0.24)} a year. Paying it from cash leaves ${money(after)} on hand.` });
+  }
+  if (avg.v){
+    const months = T.savings / avg.v, need = Math.max(0, avg.v * 3 - T.savings);
+    out.push({ lv: months >= 3 ? "good" : months >= 1 ? "warn" : "crit", t: `Savings cover ${months.toFixed(1)} months of expenses`, b: months >= 3 ? `You have a 3-month cushion based on ${avg.basis}.` : `Add ${money(need)} to reach 3 months (${money(avg.v * 3)}), based on ${avg.basis}.` });
+  } else out.push({ lv: "info", t: "Set your monthly spending to size your emergency fund", b: "Add budget limits, recurring bills, or a month of transactions. The dashboard will then show how many months your savings cover." });
+  if (T.recv > 0) out.push({ lv: "info", t: `Collect ${money(T.recv)} owed to you`, b: p.receivables.map(r => `${r.name}: ${money(num(r.amount))}`).join(", ") + "." });
+  const over = CATS.filter(c => num(p.budgets[c]) > 0 && spend[c] > num(p.budgets[c]));
+  if (over.length) out.push({ lv: "crit", t: `Over budget in ${over.length} ${over.length === 1 ? "category" : "categories"}`, b: over.map(c => `${c} by ${money(spend[c] - num(p.budgets[c]))}`).join(", ") + ` in ${monthLabel(cur)}.` });
+  const subs = spend.Subscriptions + recurringMonthly({ recurring: p.recurring.filter(r => r.category === "Subscriptions") }, "expense");
+  if (subs > 0) out.push({ lv: "warn", t: `Subscriptions cost about ${money(subs * 12)} a year`, b: `That is ${money(subs)} a month. Cancelling one $15 service saves $180 a year.` });
+  if (spend.Restaurants > 0 && spend.Restaurants > spend.Groceries) out.push({ lv: "warn", t: `Restaurants (${money(spend.Restaurants)}) outpace groceries (${money(spend.Groceries)})`, b: `Moving half of restaurant spending to groceries could save about ${money(spend.Restaurants * 0.5 * 0.6)} a month, assuming home meals cost 40% as much.` });
+  const inc = f.inc || recurringMonthly(p, "income"), exp = f.count ? f.exp : (avg.v || 0);
+  if (inc > 0 && exp > 0){ const rate = (inc - exp) / inc; out.push({ lv: rate >= 0.2 ? "good" : rate >= 0 ? "warn" : "crit", t: `Savings rate ${pct(rate, 0)}`, b: rate < 0 ? `You are spending ${money(exp - inc)} more than you earn each month.` : `You keep ${money(inc - exp)} of ${money(inc)} in monthly income.${rate < 0.2 ? " A 20% rate would mean keeping " + money(inc * 0.2) + "." : ""}` }); }
+  if (T.inv > 0){
+    const byT = {}; for (const h of p.holdings){ const k = String(h.ticker).toUpperCase(); byT[k] = (byT[k] || 0) + num(h.shares) * num(h.price); }
+    const top = Object.entries(byT).sort((a, b) => b[1] - a[1])[0];
+    const techFunds = (byT.QQQ || 0) + (byT.NVDA || 0);
+    out.push({ lv: "info", t: `${top[0]} is ${pct(top[1] / T.inv, 0)} of your investments`, b: `QQQ and Nvidia together are ${money(techFunds)} (${pct(techFunds / T.inv, 0)}), your most AI-sensitive holdings. Broad S&P 500 funds add more big-tech exposure on top.` });
+  }
+  const m = txMonth(S.txns, cur).filter(t => t.kind === "expense" && num(t.amount) > 0);
+  if (m.length){
+    const by = {}; for (const t of m){ const k = (t.desc || "Other").replace(/[#*].*$|\d{3,}.*$/g, "").trim().slice(0, 28) || "Other"; by[k] = (by[k] || 0) + num(t.amount); }
+    const top = Object.entries(by).sort((a, b) => b[1] - a[1]).slice(0, 3);
+    out.push({ lv: "info", t: `Top places you spent in ${monthLabel(cur)}`, b: top.map(([k, v]) => `${k} ${money(v)}`).join(", ") + "." });
+  }
+  if (!sumBy(Object.values(p.budgets), v => num(v))) out.push({ lv: "info", t: "No budget limits set", b: "Set a limit for each category on the Budget tab to see what's left and get overspending alerts." });
+  return out;
+}
+function insights(p){
+  const list = buildInsights(p), lab = { crit:"Act now", warn:"Watch", good:"On track", info:"Note" };
+  return `<div class="panel"><h2>Insights</h2><p class="hint">Calculated from the balances, budgets and transactions you've entered. Educational, not financial advice.</p>${list.map(i => `<div class="ins"><span class="chip ${i.lv === "good" ? "ok" : i.lv}">${lab[i.lv]}</span><div><b>${esc(i.t)}</b><p>${esc(i.b)}</p></div></div>`).join("")}</div>`;
+}
+
+function data(p){
+  const key = lsGet("md.avkey") || "";
+  const pushOK = "serviceWorker" in navigator && "PushManager" in window && "Notification" in window;
+  const perm = "Notification" in window ? Notification.permission : "unsupported";
+  return `<div class="grid g2">
+    <div class="panel" id="settings"><h2>Live prices</h2><p class="hint">Get a free key at alphavantage.co (Get free API key). It stays on this phone and is only sent to Alpha Vantage. The free plan allows 25 lookups a day; the app uses about 19 the first time you open it each day.</p>
+      <div class="form"><label class="f" for="avkey">Alpha Vantage API key<input id="avkey" type="password" autocomplete="off" value="${esc(key)}" placeholder="Paste your key"></label><div class="btns"><button class="btn primary" data-act="save-key">Save key</button><button class="btn" data-act="refresh-prices">Refresh prices now</button></div></div></div>
+    <div class="panel"><h2>Notifications</h2><p class="hint">${pushOK ? (perm === "granted" ? "Notifications are allowed on this device." : "Turn on alerts for market moves, key dates and your Sunday check-in.") : "This browser can't receive notifications. On iPhone, add Dry Powder to your Home Screen first (iOS 16.4 or later), then open it from the icon."}</p>
+      <div class="btns"><button class="btn primary" data-act="push-enable"${pushOK ? "" : " disabled"}>${perm === "granted" ? "Show my device code" : "Turn on notifications"}</button><button class="btn" data-act="push-test"${perm === "granted" ? "" : " disabled"}>Send a test</button></div><div id="pushout"></div></div>
+    <div class="panel"><h2>Back up and restore</h2><p class="hint">Your data is saved on this phone. Export a backup now and then. To move your numbers from the Claude version, export there (More, Data and backup) and restore the file here.</p>
+    <div class="btns"><button class="btn primary" data-act="export">Export backup (JSON)</button><label class="btn" for="restore">Restore from backup<input type="file" id="restore" accept="application/json,.json" style="position:absolute;left:-9999px" data-act="restore"></label></div><div id="exportout"></div></div>
+    <div class="panel"><h2>Import a card statement</h2><p class="hint">Download a CSV from Chase or Capital One and import it here. Categories fill in automatically, card payments are skipped, and repeats are ignored. Imports do not change your balances.</p><button class="btn" data-act="import-csv">Choose CSV file</button></div>
+    <div class="panel"><h2>What's stored</h2><p class="hint">${p.accounts.length} accounts · ${p.holdings.length} holdings · ${S.txns.length} transactions · ${p.goals.length} goals · ${p.history.length} days of net worth history. Nothing here connects to your bank.</p></div></div>`;
+}
+const VAPID_PUBLIC = "BGn0xAU7YUEcO_vldQ3YwTsDO_ZPCYatXGTU8S7rNBTyUeHkSZ2iWnSJqdzVBF8DdLwhvBoDUAUMHqyzzkoTi8g";
+function b64ToBytes(s){ const pad = "=".repeat((4 - s.length % 4) % 4); const b = atob((s + pad).replace(/-/g, "+").replace(/_/g, "/")); return Uint8Array.from(b, c => c.charCodeAt(0)); }
+async function pushEnable(){
+  const out = $("#pushout");
+  try {
+    const perm = await Notification.requestPermission();
+    if (perm !== "granted"){ out.innerHTML = `<p class="hint" style="margin-top:10px">Notifications are blocked. Allow them in your phone's Settings for Dry Powder, then try again.</p>`; return; }
+    const reg = await navigator.serviceWorker.ready;
+    const sub = (await reg.pushManager.getSubscription()) || (await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64ToBytes(VAPID_PUBLIC) }));
+    const code = JSON.stringify(sub);
+    out.innerHTML = `<p class="hint" style="margin-top:12px"><b>Last step.</b> Copy this device code. In your GitHub repository, open Settings, then Secrets and variables, then Actions, and add a new secret named <b>PUSH_SUBSCRIPTION</b> with this code as its value.</p><pre class="json">${esc(code)}</pre><button class="btn small" id="copysub">Copy device code</button>`;
+    $("#copysub").addEventListener("click", () => navigator.clipboard.writeText(code).then(() => toast("Copied"), () => toast("Select the text and copy it")));
+  } catch (e) { out.innerHTML = `<p class="hint" style="margin-top:10px">Couldn't turn on notifications (${esc(e.message || e)}). On iPhone, open Dry Powder from its Home Screen icon and try again.</p>`; }
+}
+async function pushTest(){ try { const reg = await navigator.serviceWorker.ready; await reg.showNotification("Dry Powder", { body: "Notifications are working on this device.", icon: "icons/icon-192.png", badge: "icons/icon-192.png" }); } catch { toast("Couldn't show a test notification."); } }
+// ---------- CSV import ----------
+function parseCSV(text){
+  const rows = []; let row = [], f = "", q = false;
+  for (let i = 0; i < text.length; i++){
+    const c = text[i];
+    if (q){ if (c === '"'){ if (text[i + 1] === '"'){ f += '"'; i++; } else q = false; } else f += c; }
+    else if (c === '"') q = true; else if (c === ","){ row.push(f); f = ""; } else if (c === "\n" || c === "\r"){ if (c === "\r" && text[i + 1] === "\n") i++; row.push(f); rows.push(row); row = []; f = ""; } else f += c;
+  }
+  if (f || row.length){ row.push(f); rows.push(row); }
+  return rows.filter(r => r.some(x => x.trim()));
+}
+function parseDate(s){ s = String(s).trim(); let m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/); if (m) return `${m[1]}-${pad(+m[2])}-${pad(+m[3])}`; m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})/); if (m){ const y = m[3].length === 2 ? "20" + m[3] : m[3]; return `${y}-${pad(+m[1])}-${pad(+m[2])}`; } return null; }
+const KW = [[/uber eats|doordash|grubhub|restaurant|cafe|coffee|starbucks|chipotle|mcdonald|pizza|taco|bar & grill|sweetgreen|dunkin/i, "Restaurants"], [/uber|lyft|shell|exxon|chevron|bp |sunoco|wawa|gas|parking|transit|metro|mta|amtrak/i, "Transportation"], [/netflix|spotify|hulu|disney\+|apple\.com\/bill|youtube premium|max\.com|prime video|icloud|chatgpt|claude|adobe|subscription/i, "Subscriptions"], [/whole foods|trader joe|kroger|safeway|aldi|publix|wegmans|grocery|market|costco|h-e-b/i, "Groceries"], [/amazon|target|walmart|best buy|nike|zara|h&m|etsy|ebay/i, "Shopping"], [/university|college|bookstore|tuition|chegg|pearson|campus/i, "School"], [/airline|delta|united|american air|southwest|jetblue|hotel|airbnb|marriott|hilton|expedia/i, "Travel"], [/cinema|amc|theater|ticketmaster|steam|playstation|xbox|nintendo|concert/i, "Entertainment"]];
+const BANKCAT = [[/food|dining|restaurant/i, "Restaurants"], [/grocer/i, "Groceries"], [/gas|automotive|transport|travel.*car|parking/i, "Transportation"], [/airfare|lodging|travel|hotel/i, "Travel"], [/entertain/i, "Entertainment"], [/education/i, "School"], [/merchandise|shopping|home/i, "Shopping"], [/bills|utilities/i, "Subscriptions"]];
+function guessCat(desc, bankCat){ for (const [re, c] of KW) if (re.test(desc)) return c; for (const [re, c] of BANKCAT) if (re.test(bankCat || "")) return c; return "Miscellaneous"; }
+function readStatement(text){
+  const rows = parseCSV(text); if (rows.length < 2) throw new Error("That file has no rows.");
+  const head = rows[0].map(h => h.trim().toLowerCase());
+  const col = names => head.findIndex(h => names.includes(h));
+  const iDate = col(["transaction date", "trans. date", "date", "posted date", "post date", "posting date"]);
+  const iDesc = col(["description", "merchant", "name", "payee", "details"]);
+  const iAmt = col(["amount"]), iDeb = col(["debit"]), iCred = col(["credit"]), iCat = col(["category"]), iType = col(["type"]);
+  if (iDate < 0 || iDesc < 0 || (iAmt < 0 && iDeb < 0)) throw new Error("Couldn't find date, description and amount columns.");
+  const body = rows.slice(1); let purchaseSign = 1;
+  if (iAmt >= 0){ const neg = body.filter(r => num(r[iAmt]) < 0).length; purchaseSign = neg > body.length / 2 ? -1 : 1; }
+  const out = []; let payments = 0, bad = 0;
+  for (const r of body){
+    const date = parseDate(r[iDate]); const desc = (r[iDesc] || "").trim(); if (!date || !desc){ bad++; continue; }
+    let amt, isCredit;
+    if (iAmt >= 0){ const a = num(r[iAmt]); amt = Math.abs(a); isCredit = a * purchaseSign < 0; }
+    else { const d = num(r[iDeb]), c = iCred >= 0 ? num(r[iCred]) : 0; if (d){ amt = Math.abs(d); isCredit = false; } else { amt = Math.abs(c); isCredit = true; } }
+    if (!amt) continue;
+    const type = iType >= 0 ? (r[iType] || "") : "";
+    if (isCredit && (/payment|autopay|thank you/i.test(desc) || /payment/i.test(type))){ payments++; continue; }
+    out.push({ date, desc, amount: r2(isCredit ? -amt : amt), category: guessCat(desc, iCat >= 0 ? r[iCat] : "") });
+  }
+  return { rows: out, payments, bad };
+}
+function startImport(){
+  const inp = document.createElement("input"); inp.type = "file"; inp.accept = ".csv,text/csv"; inp.style.position = "absolute"; inp.style.left = "-9999px"; document.body.appendChild(inp);
+  inp.addEventListener("change", async () => {
+    const file = inp.files[0]; inp.remove(); if (!file) return;
+    let res; try { res = readStatement(await file.text()); } catch (e) { toast(e.message); return; }
+    const key = t => `${t.date}|${t.desc}|${num(t.amount).toFixed(2)}`; const have = new Set(S.txns.map(key));
+    const fresh = res.rows.filter(t => !have.has(key(t))); const dups = res.rows.length - fresh.length;
+    const cards = S.profile.accounts.filter(a => a.type === "credit");
+    const byCat = {}; for (const t of fresh) byCat[t.category] = (byCat[t.category] || 0) + t.amount;
+    openForm({ title: `Import ${file.name}`, submit: fresh.length ? `Import ${fresh.length}` : "Close", fields: [
+      { id: "info", type: "note", label: `${fresh.length} new transactions totalling ${money(sumBy(fresh, t => t.amount))}. Skipped ${dups} already imported and ${res.payments} card payments${res.bad ? ` and ${res.bad} unreadable rows` : ""}.` },
+      { id: "cats", type: "note", label: Object.entries(byCat).sort((a, b) => b[1] - a[1]).map(([c, v]) => `${c} ${money(v)}`).join(" · ") || "Nothing new to add." },
+      { id: "account", type: "select", label: "Which card is this statement from?", value: cards[0] ? cards[0].id : "", options: [["", "Not linked"], ...cards.map(a => [a.id, a.name])] }],
+      onSubmit: v => { if (!fresh.length) return; (async () => { const now = Date.now(); let i = 0; for (const t of fresh){ await putTx({ id: uid("t"), date: t.date, desc: t.desc, amount: t.amount, kind: "expense", category: t.category, account: v.account, source: "import", applied: false, createdAt: now + i++ }); } renderAll(); toast(`Imported ${fresh.length} transactions`); })(); }
+    });
+  });
+  inp.click();
+}
+
+// ---------- forms ----------
+const acctOpts = () => [["", "None"], ...S.profile.accounts.map(a => [a.id, a.name])];
+function txForm(t){
+  const isNew = !t; t = t || { date: today(), kind: "expense", category: "Groceries", amount: "", desc: "", account: "", applied: true };
+  openForm({ title: isNew ? "Add transaction" : "Edit transaction", fields: [
+    { id: "desc", label: "Description", value: t.desc, required: true, placeholder: "Trader Joe's" },
+    { id: "amount", label: "Amount ($)", type: "number", value: t.amount, required: true, half: true },
+    { id: "date", label: "Date", type: "date", value: t.date, required: true, half: true },
+    { id: "kind", label: "Type", type: "select", value: t.kind, options: [["expense", "Expense"], ["income", "Income"], ["transfer", "Transfer"]], half: true },
+    { id: "category", label: "Category (expenses)", type: "select", value: t.category, options: CATS.map(c => [c, c]), half: true },
+    { id: "account", label: "Account", type: "select", value: t.account, options: acctOpts() },
+    { id: "applied", label: "Also update that account's balance", type: "checkbox", value: isNew ? true : !!t.applied }],
+    onSubmit: v => {
+      const amt = num(v.amount); if (!v.desc.trim() || !amt){ toast("Add a description and amount."); return false; }
+      const p = clone(S.profile); if (!isNew) applyTx(p, t, -1);
+      const nt = Object.assign({}, t, { id: t.id || uid("t"), desc: v.desc.trim(), amount: r2(amt), date: v.date, kind: v.kind, category: v.category, account: v.account, applied: !!(v.applied && v.account && v.kind !== "transfer"), source: t.source || "manual", createdAt: t.createdAt || Date.now() });
+      applyTx(p, nt, 1); if (nt.applied || (!isNew && t.applied)) commit(p);
+      putTx(nt); renderAll(); toast(isNew ? "Transaction added" : "Transaction updated");
+    },
+    onDelete: isNew ? null : () => { if (t.applied){ const p = clone(S.profile); applyTx(p, t, -1); commit(p); } dropTx(t.id); renderAll(); toast("Transaction deleted"); }
+  });
+}
+function acctForm(a){
+  const isNew = !a; a = a || { name: "", type: "checking", balance: "" };
+  openForm({ title: isNew ? "Add account" : `Update ${a.name}`, fields: [
+    { id: "name", label: "Name", value: a.name, required: true, placeholder: "Chase checking" },
+    { id: "type", label: "Type", type: "select", value: a.type, options: Object.entries(ACCT), half: true },
+    { id: "balance", label: a.type === "credit" ? "Balance owed ($)" : "Balance ($)", type: "number", value: a.balance, half: true },
+    { id: "note", label: "Note (optional)", value: a.note || "" }],
+    onSubmit: v => { if (!v.name.trim()){ toast("Give the account a name."); return false; } const p = clone(S.profile); const na = { id: a.id || uid("a"), name: v.name.trim(), type: v.type, balance: r2(num(v.balance)), note: v.note.trim() }; const i = p.accounts.findIndex(x => x.id === na.id); if (i >= 0) p.accounts[i] = na; else p.accounts.push(na); commit(p); toast("Saved"); },
+    onDelete: isNew ? null : () => { const p = clone(S.profile); p.accounts = p.accounts.filter(x => x.id !== a.id); commit(p); toast("Account removed"); }
+  });
+}
+function recvForm(r){
+  const isNew = !r; r = r || { name: "", amount: "", note: "" };
+  openForm({ title: isNew ? "Add money owed to you" : `Edit ${r.name}`, fields: [{ id: "name", label: "Who owes you", value: r.name, required: true }, { id: "amount", label: "Amount ($)", type: "number", value: r.amount }, { id: "note", label: "For what (optional)", value: r.note || "" }],
+    onSubmit: v => { const p = clone(S.profile); const nr = { id: r.id || uid("r"), name: v.name.trim(), amount: r2(num(v.amount)), note: v.note.trim() }; const i = p.receivables.findIndex(x => x.id === nr.id); if (i >= 0) p.receivables[i] = nr; else p.receivables.push(nr); commit(p); },
+    onDelete: isNew ? null : () => { const p = clone(S.profile); p.receivables = p.receivables.filter(x => x.id !== r.id); commit(p); } });
+}
+function recvPaid(id){
+  const r = S.profile.receivables.find(x => x.id === id); if (!r) return;
+  openForm({ title: `${r.name} paid you ${money(num(r.amount))}`, submit: "Mark paid", fields: [{ id: "account", label: "Where did the money go?", type: "select", value: (S.profile.accounts.find(a => a.type === "cash") || {}).id || "", options: acctOpts().filter(o => { const a = S.profile.accounts.find(x => x.id === o[0]); return !a || a.type !== "credit"; }) }],
+    onSubmit: v => { const p = clone(S.profile); p.receivables = p.receivables.filter(x => x.id !== id); const a = p.accounts.find(x => x.id === v.account); if (a) a.balance = r2(num(a.balance) + num(r.amount)); commit(p); toast(a ? `Added ${money(num(r.amount))} to ${a.name}` : "Marked paid"); } });
+}
+function recForm(r){
+  const isNew = !r; r = r || { name: "", amount: "", freq: "monthly", kind: "expense", category: "Subscriptions" };
+  openForm({ title: isNew ? "Add recurring item" : `Edit ${r.name}`, fields: [
+    { id: "name", label: "Name", value: r.name, required: true, placeholder: "Spotify" },
+    { id: "amount", label: "Amount each time ($)", type: "number", value: r.amount, half: true },
+    { id: "freq", label: "How often", type: "select", value: r.freq, options: [["weekly", "Weekly"], ["biweekly", "Every 2 weeks"], ["monthly", "Monthly"], ["yearly", "Yearly"]], half: true },
+    { id: "kind", label: "Type", type: "select", value: r.kind, options: [["income", "Income"], ["expense", "Bill or expense"]], half: true },
+    { id: "category", label: "Category (bills)", type: "select", value: r.category || "Subscriptions", options: CATS.map(c => [c, c]), half: true }],
+    onSubmit: v => { const p = clone(S.profile); const nr = { id: r.id || uid("c"), name: v.name.trim(), amount: r2(num(v.amount)), freq: v.freq, kind: v.kind, category: v.kind === "expense" ? v.category : "" }; const i = p.recurring.findIndex(x => x.id === nr.id); if (i >= 0) p.recurring[i] = nr; else p.recurring.push(nr); commit(p); },
+    onDelete: isNew ? null : () => { const p = clone(S.profile); p.recurring = p.recurring.filter(x => x.id !== r.id); commit(p); } });
+}
+function holdForm(x){
+  const isNew = !x; x = x || { ticker: "", name: "", account: "Brokerage", shares: "", cost: "", price: "" };
+  const accts = [...new Set(["Roth IRA", "Brokerage", ...S.profile.holdings.map(h => h.account)])];
+  openForm({ title: isNew ? "Add holding" : `Edit ${x.ticker}`, fields: [
+    { id: "ticker", label: "Ticker", value: x.ticker, required: true, half: true, placeholder: "VOO" },
+    { id: "account", label: "Account", type: "select", value: x.account, options: accts.map(a => [a, a]), half: true },
+    { id: "name", label: "Name (optional)", value: x.name },
+    { id: "shares", label: "Shares", type: "number", step: "0.0001", value: x.shares, half: true },
+    { id: "cost", label: "Total cost basis ($)", type: "number", value: x.cost, half: true },
+    { id: "price", label: "Current price per share ($)", type: "number", value: x.price },
+    { id: "n", type: "note", label: "Enter the price from your brokerage app. This page has no live market data." }],
+    onSubmit: v => { if (!v.ticker.trim()){ toast("Add a ticker."); return false; } const p = clone(S.profile); const nh = { id: x.id || uid("h"), ticker: v.ticker.trim().toUpperCase(), name: v.name.trim(), account: v.account, shares: num(v.shares), cost: r2(num(v.cost)), price: num(v.price) }; const i = p.holdings.findIndex(h => h.id === nh.id); if (i >= 0) p.holdings[i] = nh; else p.holdings.push(nh); commit(p); toast("Holding saved"); },
+    onDelete: isNew ? null : () => { const p = clone(S.profile); p.holdings = p.holdings.filter(h => h.id !== x.id); commit(p); } });
+}
+function goalForm(g){
+  const isNew = !g; g = g || { name: "", kind: "manual", target: "", current: "", date: "", account: "", start: "", category: "Restaurants", why: "" };
+  openForm({ title: isNew ? "Add goal" : `Edit ${g.name}`, fields: [
+    { id: "name", label: "Goal", value: g.name, required: true, placeholder: "Emergency fund" },
+    { id: "kind", label: "How progress is measured", type: "select", value: g.kind, options: [["manual", "I'll update it myself"], ["account", "Balance of an account"], ["debt", "Paying down credit cards"], ["spending", "Keep a category under a monthly limit"]] },
+    { id: "target", label: "Target amount ($) or monthly limit", type: "number", value: g.target ?? "", half: true },
+    { id: "date", label: "Target date", type: "date", value: g.date || "", half: true },
+    { id: "current", label: "Current amount (I'll update it myself)", type: "number", value: g.current ?? "", half: true },
+    { id: "account", label: "Account (balance of an account)", type: "select", value: g.account, options: acctOpts(), half: true },
+    { id: "start", label: "Starting debt ($) (paying down cards)", type: "number", value: g.start ?? "", half: true },
+    { id: "category", label: "Category (monthly limit)", type: "select", value: g.category || "Restaurants", options: CATS.map(c => [c, c]), half: true },
+    { id: "why", label: "Why it matters (optional)", value: g.why || "" }],
+    onSubmit: v => { const p = clone(S.profile); const ng = { id: g.id || uid("g"), name: v.name.trim(), kind: v.kind, target: v.target === "" ? null : r2(num(v.target)), date: v.date, current: r2(num(v.current)), account: v.account, start: r2(num(v.start) || totals(S.profile).credit), category: v.category, why: v.why.trim() }; const i = p.goals.findIndex(x => x.id === ng.id); if (i >= 0) p.goals[i] = ng; else p.goals.push(ng); commit(p); toast("Goal saved"); },
+    onDelete: isNew ? null : () => { const p = clone(S.profile); p.goals = p.goals.filter(x => x.id !== g.id); commit(p); } });
+}
+
+// ---------- export / restore ----------
+async function doExport(){
+  const payload = JSON.stringify({ app: "money-desk", version: 1, exportedAt: new Date().toISOString(), profile: S.profile, txns: S.txns }, null, 2);
+  try {
+    const url = URL.createObjectURL(new Blob([payload], { type: "application/json" }));
+    const a = document.createElement("a"); a.href = url; a.download = `dry-powder-${today()}.json`; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 2000);
+    toast("Backup saved");
+  } catch {
+    $("#exportout").innerHTML = `<p class="hint" style="margin-top:10px">Copy this text and save it somewhere safe.</p><pre class="json">${esc(payload)}</pre>`;
+  }
+}
+async function doRestore(file){
+  let obj; try { obj = JSON.parse(await file.text()); } catch { toast("That file isn't a Money Desk backup."); return; }
+  if (!obj || obj.app !== "money-desk" || !obj.profile){ toast("That file isn't a Money Desk backup."); return; }
+  openForm({ title: "Restore this backup?", submit: "Replace my data", fields: [{ id: "n", type: "note", label: `This replaces your accounts, holdings, budgets and goals with the backup from ${dateLabel((obj.exportedAt || "").slice(0, 10))}, and adds its ${(obj.txns || []).length} transactions.` }],
+    onSubmit: () => { (async () => { const p = normalize(obj.profile); commit(p); const have = new Set(S.txns.map(t => t.id)); for (const t of obj.txns || []) if (!have.has(t.id)) await putTx(t); renderAll(); toast("Backup restored"); })(); } });
+}
+
+// ---------- live prices (Alpha Vantage connector) ----------
+function parseQuote(pl){
+  if (typeof pl === "string"){ try { pl = JSON.parse(pl); } catch { return /limit|frequency|premium|spread out/i.test(pl) ? false : null; } }
+  if (!pl || typeof pl !== "object") return null;
+  let price = null, chg = null, day = null, limit = false;
+  (function walk(o, d){ if (!o || typeof o !== "object" || d > 5) return; for (const [k, v] of Object.entries(o)){ if (v && typeof v === "object") walk(v, d + 1); else { const key = String(k).trim(); if (price == null && /(^|\W)price$/i.test(key) && isFinite(parseFloat(v))) price = parseFloat(v); else if (chg == null && /change.?percent/i.test(key)) chg = parseFloat(String(v)); else if (day == null && /trading.?day/i.test(key)) day = String(v); if (/^(note|information)$/i.test(key) && /limit|frequency|premium|spread out/i.test(String(v))) limit = true; } } })(pl, 0);
+  if (price) return { price, changePct: isFinite(chg) ? chg : null, day };
+  return limit ? false : null;
+}
+async function refreshPrices(force){
+  if (LIVE.running || !S.profile) return;
+  const p = S.profile, key = (lsGet("md.avkey") || "").trim();
+  if (!key){ LIVE.state = "connect"; LIVE.msg = "Add your free Alpha Vantage key under More, then Settings, to turn on live prices."; renderAll(); return; }
+  if (!force && p.quotesAt === today()){ LIVE.state = "ok"; LIVE.msg = `Live prices already updated today${p.quotesTime ? " at " + p.quotesTime : ""}.`; renderAll(); return; }
+  if (!navigator.onLine){ LIVE.state = "error"; LIVE.msg = "You're offline. Showing your last saved prices."; renderAll(); return; }
+  LIVE.running = true; LIVE.state = "running"; LIVE.msg = "Getting live prices…"; renderAll();
+  const tickers = [...new Set([...p.holdings.filter(h => String(h.ticker).toUpperCase() !== "CASH").map(h => String(h.ticker).toUpperCase()), ...PULSE.map(x => x[0])])];
+  const quotes = Object.assign({}, p.quotes || {}); let ok = 0; const failed = []; let limited = false;
+  for (const t of tickers){
+    let q = null;
+    try {
+      const r = await fetch(`https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=${encodeURIComponent(t)}&datatype=json&apikey=${encodeURIComponent(key)}`);
+      q = parseQuote(await r.json());
+    } catch { q = null; }
+    if (q === false){ limited = true; failed.push(t); break; }
+    if (q){ quotes[t] = { price: q.price, changePct: q.changePct, day: q.day || "", at: Date.now() }; ok++; } else failed.push(t);
+  }
+  LIVE.running = false;
+  if (ok){
+    const n = clone(S.profile); n.quotes = quotes; n.quotesAt = today(); const d = new Date(); n.quotesTime = `${((d.getHours() + 11) % 12) + 1}:${pad(d.getMinutes())} ${d.getHours() < 12 ? "AM" : "PM"}`;
+    for (const h of n.holdings){ const x = quotes[String(h.ticker).toUpperCase()]; if (x && x.price) h.price = x.price; }
+    n.pricesAsOf = today(); commit(n);
+  }
+  LIVE.state = ok ? "ok" : "error";
+  LIVE.msg = ok ? `Live prices updated for ${ok} of ${tickers.length} tickers${failed.length ? `. No quote for ${failed.slice(0, 6).join(", ")}${failed.length > 6 ? "…" : ""}, so last saved prices are used` : ""}${limited ? ". Alpha Vantage's daily limit was reached" : ""}.` : (limited ? "Alpha Vantage's free daily limit was reached. Showing your last saved prices." : "Prices couldn't be updated. Check your key under Settings.");
+  renderAll();
+}
+function liveBar(){
+  const cls = { ok: "ok", connect: "warn", error: "warn", unavailable: "", running: "info", idle: "" }[LIVE.state] || "";
+  const p = S.profile; const msg = LIVE.msg || (p.quotesAt ? `Live prices from ${dateLabel(p.quotesAt)}${p.quotesTime ? ", " + p.quotesTime : ""}.` : "Prices are the ones you saved.");
+  return `<div class="livebar"><span class="chip ${cls}" role="status">${esc(msg)}</span><button class="btn small" data-act="refresh-prices"${LIVE.running ? " disabled" : ""}>${LIVE.running ? "Updating…" : "Refresh prices"}</button></div>`;
+}
+
+// ---------- more ----------
+function more(p){
+  const item = (href, t, d) => `<a href="${href}"><span><b>${t}</b><small>${d}</small></span><span aria-hidden="true" class="muted">›</span></a>`;
+  return `<div class="panel menu">${item("#cashflow", "Cash flow", "Income vs expenses and recurring bills")}${item("#insights", "Insights", "What your numbers say, with dollar amounts")}${item("#data", "Settings and data", "Live prices key, notifications, backup and card imports")}${item("#install", "Install and alerts", "Home Screen icon, live prices and notifications setup")}${item("https://claude.ai/artifact/PjFgQEuxaiaZpjSgvvcAPv", "Edit the playbook doc", "The full written playbook you can edit and comment on")}</div>`;
+}
+function install(){
+  const step = (n, t, d) => `<div class="step"><span class="n">${n}</span><div><b>${t}</b><p>${d}</p></div></div>`;
+  return `<div class="pb"><p class="lead">Set up Dry Powder like any app on your phone: an icon on your Home Screen and alerts when something matters.</p>
+  <h2 class="sec">1. Put it on your Home Screen</h2><div class="panel">
+  ${step(1, "iPhone", "Open this page in Safari. Tap Share, then Add to Home Screen, then Add.")}
+  ${step(2, "Android", "Open it in Chrome. Tap the ⋮ menu, then Install app or Add to Home screen.")}
+  ${step(3, "Open it from the icon", "It opens full screen and works offline. Your data stays on this phone.")}</div>
+  <h2 class="sec">2. Bring over your numbers</h2><div class="panel">
+  ${step(1, "Export from the Claude version", "In Dry Powder on claude.ai, open More, then Data and backup, then Export backup.")}
+  ${step(2, "Restore here", "Open More, then Settings and data, then Restore from backup, and pick that file.")}</div>
+  <h2 class="sec">3. Turn on live prices</h2><div class="panel">
+  ${step(1, "Get a free key", "Go to alphavantage.co and tap Get free API key.")}
+  ${step(2, "Save it", "Paste it under More, then Settings and data. Prices refresh the first time you open the app each day.")}</div>
+  <h2 class="sec">4. Turn on notifications</h2><div class="panel">
+  ${step(1, "Allow alerts", "From the Home Screen icon, open More, then Settings and data, and tap Turn on notifications. iPhone needs iOS 16.4 or later.")}
+  ${step(2, "Save your device code", "Copy the code it shows into a GitHub secret named PUSH_SUBSCRIPTION (Settings, then Secrets and variables, then Actions).")}
+  ${step(3, "What you'll get", "A market-close summary on weekdays around 4:30 PM Eastern with S&P, Nasdaq, Nvidia and chip-stock moves, a heads-up the day before key dates like Nvidia earnings, and a Sunday check-in reminder.")}</div></div>`;
+}
+// ---------- playbook ----------
+const PB_EVENTS = [["2026-11-03", "AMD earnings and midterm elections", "AI chip demand; any policy shock"], ["2026-11-06", "Jobs report", "Weak jobs plus rate hikes is a bad mix"], ["2026-11-10", "Inflation report and CoreWeave earnings", "Hot inflation locks in a Dec rate hike; CoreWeave is a debt-funded AI cloud"], ["2026-11-17", "Nvidia earnings", "The biggest test. Warning sign: the stock falls on good news", true], ["2026-12-09", "Fed rate decision", "About 85% odds of another hike"], ["2027-01-28", "Big Tech year-end earnings (late Jan to early Feb, approx.)", "2027 AI spending plans and free cash flow"], ["2027-04-15", "Last day for 2026 Roth IRA deposits", "Up to what you earned in 2026"]];
+const PB_MOVES = [["m1", "Pay both credit cards in full."], ["m2", "Collect the $191 from Max and Nick."], ["m3", "Grow UFB savings toward 3 months of expenses."], ["m4", "Check Deloitte's rules on which stocks employees may own."], ["m5", "Plan the internship money: emergency fund, then 2027 Roth, then buy-the-dip cash."]];
+function daysUntil(iso){ const [y, m, d] = iso.split("-").map(Number); const a = new Date(y, m - 1, d), n = new Date(); n.setHours(0, 0, 0, 0); return Math.round((a - n) / 864e5); }
+function playbook(p){
+  const T = totals(p), checks = p.checks || {}, q = p.quotes || {};
+  const done = PB_MOVES.filter(m => checks[m[0]]).length;
+  const chips = [["pb-start", "Start here"], ["pb-plan", "Your plan"], ["pb-watch", "What to watch"], ["pb-pops", "If it pops"], ["pb-reels", "The reels"], ["pb-ref", "Reference"]];
+  let h = `<div class="pb"><div class="chips" role="navigation" aria-label="Playbook sections">${chips.map(c => `<button data-act="jump" data-to="${c[0]}">${c[1]}</button>`).join("")}</div>`;
+  h += `<h2 class="sec" id="pb-start" style="margin-top:4px">Start here</h2><div class="panel"><p class="lead">You're in a strong spot for a student. Nobody can reliably time a bubble, so the goal is to be unhurt if it pops and ready to buy when prices are low.</p>
+    <div class="ph" style="margin:4px 0 0"><b>Your next 5 moves</b><span class="chip ${done === 5 ? "ok" : "info"}">${done} of 5 done</span></div>
+    ${PB_MOVES.map(([k, t]) => `<label class="check${checks[k] ? " done" : ""}" for="ck_${k}"><input type="checkbox" id="ck_${k}" data-act="check" data-k="${k}"${checks[k] ? " checked" : ""}><span>${esc(t)}</span></label>`).join("")}
+    <p class="muted" style="font-size:13px;margin-top:8px">General education, not personalized financial advice.</p></div>`;
+  h += `<h2 class="sec" id="pb-plan">Your plan</h2><div class="panel"><p>Your weak spot is cash, not stocks. After paying off cards you'd have <b class="num">${money(T.available)}</b> of cash, against <b class="num">${money(T.inv)}</b> invested. These figures update from your Money Desk.</p>
+    <ul><li><b>Pay both cards in full</b> (${money(T.credit)} now). At about 24% interest, paying them off beats any investment.</li><li><b>Build savings to 3 months of expenses</b> before adding new money to the brokerage.</li><li><b>Leave the Roth alone.</b> FXAIX and FZROX are right for money you won't touch for decades; a crash there is a discount.</li><li><b>Roth limit:</b> you can only contribute what you earn. About $4,160 a year at $80/week.</li><li><b>AI worries?</b> Act in the brokerage: trim QQQ, the most tech-heavy fund, and hold the cash for buying a dip. At your income, selling likely costs little or no tax.</li></ul></div>
+    <div class="panel" style="margin-top:12px"><h2>Your internship is your dry powder</h2><p class="hint">Deloitte, summer 2027: about $13,100 before tax ($41 × 40 hours × 8 weeks). Suggested split of roughly $11,000–12,000 after tax:</p>
+    <dl class="ref"><div><dt>1. Emergency fund in UFB</dt><dd>Top up to 4–6 months of expenses, since your timeline is uncertain.</dd></div><div><dt>2. 2027 Roth IRA</dt><dd>Up to the yearly limit (about $7,500). Tax-free growth, and contributions stay withdrawable.</dd></div><div><dt>3. Buy-the-dip cash</dt><dd>The rest, in cash or T-bills, ready for the staged buying plan.</dd></div></dl>
+    <p class="muted" style="font-size:13.5px;margin-top:10px">Before you start, check Deloitte's independence rules. Big 4 firms often limit which individual stocks employees, including interns, can own. Broad index funds are usually fine.</p></div>`;
+  h += `<h2 class="sec" id="pb-watch">What to watch</h2><div class="panel"><div class="ph"><div><h2>Market pulse</h2><p class="hint" style="margin:0">Today's move in the names that matter most.</p></div></div>${liveBar()}
+    ${PULSE.map(([t, l]) => { const x = q[t]; return `<div class="quote"><span><b>${esc(l)}</b>${x && x.day ? `<small class="muted" style="display:block;font-size:12px">${esc(x.day)}</small>` : ""}</span><span class="num" style="text-align:right">${x ? `${money(x.price)}<small style="display:block;font-size:12.5px" class="${x.changePct > 0 ? "pos" : x.changePct < 0 ? "neg" : "muted"}">${x.changePct != null ? (x.changePct > 0 ? "+" : "") + x.changePct.toFixed(2) + "%" : ""}</small>` : `<span class="muted">No live quote</span>`}</span></div>`; }).join("")}</div>
+    <div class="panel" style="margin-top:12px"><h2>Key dates</h2><p class="hint">Nvidia on Nov 17 is the biggest near-term test.</p>
+    ${PB_EVENTS.map(([d, t, w, key]) => { const n = daysUntil(d), past = n < 0; const [, mm, dd] = d.split("-").map(Number); return `<div class="ev${key ? " key" : ""}${past ? " past" : ""}"><div class="dt"><b>${dd}</b>${MON[mm - 1]}</div><div><b style="font-weight:${key ? 700 : 600}">${esc(t)}</b><small>${esc(w)}</small></div><span class="chip ${past ? "" : n <= 7 ? "warn" : ""}">${past ? "Passed" : n === 0 ? "Today" : n === 1 ? "Tomorrow" : n + " days"}</span></div>`; }).join("")}</div>
+    <div class="panel" style="margin-top:12px"><h2>Warning signs the top may be in</h2><ol style="margin-top:8px">
+    <li><b>Good news, falling stock.</b> Nvidia or Big Tech beats estimates and drops anyway.</li><li><b>AI spending cuts or "pauses"</b> by any big buyer.</li><li><b>Credit cracking:</b> downgrades or stress at Oracle, CoreWeave, data center debt or private credit.</li><li><b>Funding stress at AI labs:</b> flat or lower valuations, delayed deals.</li><li><b>10-year Treasury yield above 5.3%.</b></li><li><b>Chip stocks breaking lower</b>, following Korea and China's 40%+ drops.</li><li><b>Nasdaq down 20%</b> from its high, an official bear market.</li><li><b>Rising layoffs</b> while the Fed is hiking.</li></ol>
+    <p class="muted" style="font-size:13.5px;margin-top:10px">Signs it keeps inflating: earnings keep beating, the Fed pivots to cuts, AI products show real profit.</p></div>`;
+  const ladder = [["Down 10–15%", "Use 0–10%", "Hold steady; this is normal"], ["Down 20%", "Use 25%", "Broad index funds"], ["Down 30%", "Use 25%", "Index funds and watchlist names"], ["Down 40%", "Use 25%", "Profitable AI suppliers"], ["Down 50%+", "Use the last 25%", "Your best ideas; a rare chance"]];
+  h += `<h2 class="sec" id="pb-pops">If it pops</h2><div class="panel"><p>Most of the money in a pop is made by buying quality cheaply and holding through the recovery, not by betting on the fall. Bubbles deflate in waves over 1–3 years, so buy in stages.</p>
+    <div class="stairs" style="margin:12px 0">${ladder.map((l, i) => `<div style="padding-top:${10 + (4 - i) * 0}px;--indent:${i * 6}px;background:rgba(0,0,0,0);background:color-mix(in srgb, var(--accent) ${6 + i * 6}%, var(--surface))"><b>${l[0]}</b><span class="num">${l[1]}</span><small>${l[2]}</small></div>`).join("")}</div>
+    <p class="muted" style="font-size:13.5px">Second signal: a VIX reading of 40 or more usually means panic is close to peaking. Adjust the amounts to your comfort.</p></div>
+    <div class="panel" style="margin-top:12px"><h2>During the decline</h2><ul style="margin-top:8px"><li><b>Don't sell the Roth.</b> Keep contributing.</li><li><b>Favor profitable companies.</b> After 2000, Amazon fell 94% and won; many unprofitable names went to zero.</li><li><b>Tax-loss harvest</b> in the brokerage: sell a loser, buy a similar fund, book the loss.</li><li><b>Roth conversion</b> while prices are low means less tax. Ask a tax pro (or your future coworkers).</li><li><b>Shorts, puts and inverse ETFs</b> lose money every day the bubble keeps going. Cap them at 1–5% you can lose entirely, if at all.</li></ul></div>`;
+  h += `<h2 class="sec" id="pb-reels">What the reels said</h2><div class="panel"><p class="hint">Two of the three are follower funnels that usually lead to paid courses.</p>
+    <div class="reel"><b>@notyourdad.co · "be ready to buy the crash"</b><p>Live lean, build income, keep cash in high-yield savings, buy when the VIX hits 40. Alphabet's 12.6% drop on Oct 29 is confirmed.</p></div>
+    <div class="reel"><b>@thetradingfraternity · "Black October"</b><p>About a run of cyberattacks, not stocks. No actual trade given, only a promise of tomorrow's video.</p></div>
+    <div class="reel"><b>@casper_smc · "the real reason the market is crashing"</b><p>Confirmed: the French supermarket cyberattack and UK and Japan stockpiling advice. Not found: a $6B Binance hack. Several claims unchecked; don't trade on them.</p></div></div>`;
+  h += `<h2 class="sec" id="pb-ref">Reference</h2><div class="panel"><h2>Where the market stood, late Oct 2026</h2><dl class="ref" style="margin-top:6px">
+    <div><dt>Valuation</dt><dd>Shiller CAPE 41.6, near the 44.2 dot-com peak.</dd></div><div><dt>Concentration</dt><dd>The 7 largest tech firms are over 35% of the S&P 500.</dd></div><div><dt>AI spending</dt><dd>About $800B from the top hyperscalers in 2026; $1.2T projected for 2027.</dd></div><div><dt>Cash flow</dt><dd>Alphabet, Meta and Amazon now spend more than they bring in.</dd></div><div><dt>Funding</dt><dd>Meta raising up to $95B in new stock; record Big Tech bond sales.</dd></div><div><dt>Credit</dt><dd>Oracle cut to BBB-, with default insurance at an 18-year high.</dd></div><div><dt>Rates</dt><dd>Fed at 3.75–4.00% after a September hike; 10-year yield near 5%.</dd></div><div><dt>Overseas</dt><dd>Korea's KOSPI fell about 44% in 40 days; China's STAR 50 is down about 40%.</dd></div><div><dt>Still bullish</dt><dd>S&P earnings growing about 30%; Nvidia guiding $108B next quarter.</dd></div></dl></div>
+    <div class="panel" style="margin-top:12px"><h2>Mistakes to avoid</h2><ul style="margin-top:8px"><li>Going all-in on a timing call.</li><li>Using margin or leverage.</li><li>Following social-media calls without checking them.</li><li>Catching every falling knife; buy in stages.</li><li>Panic-selling retirement money.</li></ul></div>
+    <div class="panel" style="margin-top:12px"><h2>Sources</h2><ul style="margin-top:8px"><li><a href="https://admiralmarkets.com/analytics/traders-blog/ai-bubble-burst-2026" target="_blank" rel="noopener">Admiral Markets: AI Bubble 2026</a></li><li><a href="https://www.kiplinger.com/investing/live/fed-meeting-updates-and-commentary-october-2026" target="_blank" rel="noopener">Kiplinger: October Fed meeting</a></li><li><a href="https://en.sedaily.com/finance/2026/10/25/wall-street-warns-of-ai-bubble-but-keeps-buying-tech-stocks" target="_blank" rel="noopener">Seoul Economic Daily: BofA fund manager survey</a></li><li><a href="https://en.wikipedia.org/wiki/AI_bubble" target="_blank" rel="noopener">Wikipedia: AI bubble</a></li></ul>
+    <p style="margin-top:12px"><a href="https://claude.ai/artifact/PjFgQEuxaiaZpjSgvvcAPv" target="_blank" rel="noopener">Open the full editable playbook doc ›</a></p></div></div>`;
+  return h;
+}
+
+// ---------- events ----------
+document.addEventListener("click", e => {
+  const el = e.target.closest("[data-act]"); if (!el) return;
+  const act = el.dataset.act, id = el.dataset.id, p = S.profile;
+  if (act === "modal-bg"){ if (e.target === el) closeModal(); return; }
+  if (act === "close") return closeModal();
+  if (!p) return;
+  const find = (arr) => arr.find(x => x.id === id);
+  switch (act){
+    case "acct-add": return acctForm();
+    case "acct-edit": return acctForm(find(p.accounts));
+    case "recv-add": return recvForm();
+    case "recv-edit": return recvForm(find(p.receivables));
+    case "recv-paid": return recvPaid(id);
+    case "tx-add": return txForm();
+    case "tx-edit": return txForm(S.txns.find(t => t.id === id));
+    case "rec-add": return recForm();
+    case "rec-edit": return recForm(find(p.recurring));
+    case "hold-add": return holdForm();
+    case "hold-edit": return holdForm(find(p.holdings));
+    case "goal-add": return goalForm();
+    case "goal-edit": return goalForm(find(p.goals));
+    case "month": S.month = shiftMonth(S.month, Number(el.dataset.n)); return renderAll();
+    case "cat": S.catFilter = S.catFilter === el.dataset.c ? null : el.dataset.c; return renderAll();
+    case "import-csv": return startImport();
+    case "export": return doExport();
+    case "refresh-prices": return refreshPrices(true);
+    case "save-key": { const v = ($("#avkey") || {}).value || ""; lsSet("md.avkey", v.trim()); toast(v.trim() ? "Key saved" : "Key removed"); return refreshPrices(true); }
+    case "push-enable": return pushEnable();
+    case "push-test": return pushTest();
+    case "jump": { const t = document.getElementById(el.dataset.to); if (t) t.scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" }); return; }
+    case "prices-date": { const q = clone(p); q.pricesAsOf = today(); commit(q); return toast("Prices marked as of today"); }
+  }
+});
+document.addEventListener("change", e => {
+  const el = e.target; if (!S.profile) return;
+  if (el.dataset.act === "limit"){ const p = clone(S.profile); const v = num(el.value); if (v > 0) p.budgets[el.dataset.c] = r2(v); else delete p.budgets[el.dataset.c]; commit(p); }
+  if (el.dataset.act === "restore" && el.files[0]) doRestore(el.files[0]);
+  if (el.dataset.act === "check"){ const p = clone(S.profile); p.checks = Object.assign({}, p.checks || {}, { [el.dataset.k]: el.checked }); commit(p); }
+});
+
+// expose pure functions for testing
+window.__md = { parseQuote, totals, monthFlow, spendByCat, goalState, avgMonthlyExpenses, readStatement, applyTx, recurringMonthly, S };
+boot();
+if ("serviceWorker" in navigator) window.addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));
+window.addEventListener("online", () => { if (S.profile && S.profile.quotesAt !== today()) refreshPrices(false); });
+})();
+</script>
+</body>
+</html>

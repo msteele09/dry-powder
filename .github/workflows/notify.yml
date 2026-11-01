@@ -1,0 +1,36 @@
+name: Notifications
+
+on:
+  schedule:
+    - cron: "30 21 * * 1-5"   # weekdays, 4:30 PM ET in winter (5:30 PM in summer)
+    - cron: "0 15 * * 0"      # Sundays ~10 AM ET
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "What to send"
+        type: choice
+        options: [test, close, weekly]
+        default: test
+
+permissions:
+  contents: read
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm install --omit=dev --no-audit --no-fund
+        working-directory: scripts
+      - run: node notify.mjs
+        working-directory: scripts
+        env:
+          MODE: ${{ github.event_name == 'workflow_dispatch' && inputs.mode || (github.event.schedule == '0 15 * * 0' && 'weekly' || 'close') }}
+          APP_URL: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/
+          VAPID_PUBLIC_KEY: ${{ secrets.VAPID_PUBLIC_KEY }}
+          VAPID_PRIVATE_KEY: ${{ secrets.VAPID_PRIVATE_KEY }}
+          PUSH_SUBSCRIPTION: ${{ secrets.PUSH_SUBSCRIPTION }}
+          ALPHA_VANTAGE_KEY: ${{ secrets.ALPHA_VANTAGE_KEY }}
