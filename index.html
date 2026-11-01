@@ -623,6 +623,8 @@ function data(p){
       <div class="btns"><button class="btn primary" data-act="push-enable"${pushOK ? "" : " disabled"}>${perm === "granted" ? "Show my device code" : "Turn on notifications"}</button><button class="btn" data-act="push-test"${perm === "granted" ? "" : " disabled"}>Send a test</button></div><div id="pushout"></div></div>
     <div class="panel"><h2>Back up and restore</h2><p class="hint">Your data is saved on this phone. Export a backup now and then. To move your numbers from the Claude version, export there (More, Data and backup) and restore the file here.</p>
     <div class="btns"><button class="btn primary" data-act="export">Export backup (JSON)</button><label class="btn" for="restore">Restore from backup<input type="file" id="restore" accept="application/json,.json" style="position:absolute;left:-9999px" data-act="restore"></label></div><div id="exportout"></div></div>
+    <div class="panel" id="importpanel"><h2>Paste an import code</h2><p class="hint">Got an import code from Claude? Paste the whole thing here to load your numbers.</p>
+    <div class="form"><label class="f" for="importcode">Import code<textarea id="importcode" rows="3" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="DP1:..."></textarea></label><div class="btns"><button class="btn primary" data-act="paste-import">Import</button></div></div></div>
     <div class="panel"><h2>Import a card statement</h2><p class="hint">Download a CSV from Chase or Capital One and import it here. Categories fill in automatically, card payments are skipped, and repeats are ignored. Imports do not change your balances.</p><button class="btn" data-act="import-csv">Choose CSV file</button></div>
     <div class="panel"><h2>What's stored</h2><p class="hint">${p.accounts.length} accounts · ${p.holdings.length} holdings · ${S.txns.length} transactions · ${p.goals.length} goals · ${p.history.length} days of net worth history. Nothing here connects to your bank.</p></div></div>`;
 }
@@ -635,8 +637,9 @@ async function pushEnable(){
     if (perm !== "granted"){ out.innerHTML = `<p class="hint" style="margin-top:10px">Notifications are blocked. Allow them in your phone's Settings for Dry Powder, then try again.</p>`; return; }
     const reg = await navigator.serviceWorker.ready;
     const sub = (await reg.pushManager.getSubscription()) || (await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64ToBytes(VAPID_PUBLIC) }));
-    const code = JSON.stringify(sub);
-    out.innerHTML = `<p class="hint" style="margin-top:12px"><b>Last step.</b> Copy this device code. In your GitHub repository, open Settings, then Secrets and variables, then Actions, and add a new secret named <b>PUSH_SUBSCRIPTION</b> with this code as its value.</p><pre class="json">${esc(code)}</pre><button class="btn small" id="copysub">Copy device code</button>`;
+    const av = (lsGet("md.avkey") || "").trim();
+    const code = JSON.stringify({ sub: sub.toJSON(), av });
+    out.innerHTML = `<p class="hint" style="margin-top:12px"><b>Last step.</b> Tap Copy device code, then tap <a href="https://github.com/msteele09/dry-powder/settings/secrets/actions/new" target="_blank" rel="noopener">Add it to GitHub</a>. Type <b>DRY_POWDER_DEVICE</b> as the Name, paste into Secret, and tap Add secret.${av ? "" : " <b>Add your Alpha Vantage key above first</b> so alerts include prices, then tap this button again."}</p><pre class="json">${esc(code)}</pre><button class="btn small" id="copysub">Copy device code</button>`;
     $("#copysub").addEventListener("click", () => navigator.clipboard.writeText(code).then(() => toast("Copied"), () => toast("Select the text and copy it")));
   } catch (e) { out.innerHTML = `<p class="hint" style="margin-top:10px">Couldn't turn on notifications (${esc(e.message || e)}). On iPhone, open Dry Powder from its Home Screen icon and try again.</p>`; }
 }
@@ -796,6 +799,24 @@ async function doExport(){
 }
 async function doRestore(file){
   let obj; try { obj = JSON.parse(await file.text()); } catch { toast("That file isn't a Money Desk backup."); return; }
+  restoreObj(obj);
+}
+async function decodeImport(txt){
+  txt = String(txt || "").trim();
+  if (txt.startsWith("{")) return JSON.parse(txt);
+  const m = txt.replace(/\s+/g, "").match(/^DP1:([A-Za-z0-9_-]+)$/);
+  if (!m) throw new Error("bad code");
+  const bytes = b64ToBytes(m[1]);
+  const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream("deflate-raw"));
+  return JSON.parse(await new Response(stream).text());
+}
+async function pasteImport(){
+  const v = ($("#importcode") || {}).value || "";
+  if (!v.trim()){ toast("Paste your import code first."); return; }
+  let obj; try { obj = await decodeImport(v); } catch { toast("That code didn't work. Copy the whole thing and try again."); return; }
+  restoreObj(obj);
+}
+function restoreObj(obj){
   if (!obj || obj.app !== "money-desk" || !obj.profile){ toast("That file isn't a Money Desk backup."); return; }
   openForm({ title: "Restore this backup?", submit: "Replace my data", fields: [{ id: "n", type: "note", label: `This replaces your accounts, holdings, budgets and goals with the backup from ${dateLabel((obj.exportedAt || "").slice(0, 10))}, and adds its ${(obj.txns || []).length} transactions.` }],
     onSubmit: () => { (async () => { const p = normalize(obj.profile); commit(p); const have = new Set(S.txns.map(t => t.id)); for (const t of obj.txns || []) if (!have.has(t.id)) await putTx(t); renderAll(); toast("Backup restored"); })(); } });
@@ -857,14 +878,14 @@ function install(){
   ${step(2, "Android", "Open it in Chrome. Tap the ⋮ menu, then Install app or Add to Home screen.")}
   ${step(3, "Open it from the icon", "It opens full screen and works offline. Your data stays on this phone.")}</div>
   <h2 class="sec">2. Bring over your numbers</h2><div class="panel">
-  ${step(1, "Export from the Claude version", "In Dry Powder on claude.ai, open More, then Data and backup, then Export backup.")}
-  ${step(2, "Restore here", "Open More, then Settings and data, then Restore from backup, and pick that file.")}</div>
+  ${step(1, "Get an import code", "Ask Claude for a Dry Powder import code, then copy it.")}
+  ${step(2, "Paste it here", "Open More, then Settings and data, paste it under Paste an import code, and tap Import.")}</div>
   <h2 class="sec">3. Turn on live prices</h2><div class="panel">
   ${step(1, "Get a free key", "Go to alphavantage.co and tap Get free API key.")}
   ${step(2, "Save it", "Paste it under More, then Settings and data. Prices refresh the first time you open the app each day.")}</div>
   <h2 class="sec">4. Turn on notifications</h2><div class="panel">
   ${step(1, "Allow alerts", "From the Home Screen icon, open More, then Settings and data, and tap Turn on notifications. iPhone needs iOS 16.4 or later.")}
-  ${step(2, "Save your device code", "Copy the code it shows into a GitHub secret named PUSH_SUBSCRIPTION (Settings, then Secrets and variables, then Actions).")}
+  ${step(2, "Save your device code", "Tap Copy device code, then Add it to GitHub. Name it DRY_POWDER_DEVICE and paste the code as the secret.")}
   ${step(3, "What you'll get", "A market-close summary on weekdays around 4:30 PM Eastern with S&P, Nasdaq, Nvidia and chip-stock moves, a heads-up the day before key dates like Nvidia earnings, and a Sunday check-in reminder.")}</div></div>`;
 }
 // ---------- playbook ----------
@@ -939,6 +960,7 @@ document.addEventListener("click", e => {
     case "save-key": { const v = ($("#avkey") || {}).value || ""; lsSet("md.avkey", v.trim()); toast(v.trim() ? "Key saved" : "Key removed"); return refreshPrices(true); }
     case "push-enable": return pushEnable();
     case "push-test": return pushTest();
+    case "paste-import": return pasteImport();
     case "jump": { const t = document.getElementById(el.dataset.to); if (t) t.scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" }); return; }
     case "prices-date": { const q = clone(p); q.pricesAsOf = today(); commit(q); return toast("Prices marked as of today"); }
   }

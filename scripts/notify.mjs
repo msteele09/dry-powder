@@ -2,9 +2,19 @@
 // MODE: "close" (weekday market-close summary), "weekly" (Sunday check-in) or "test".
 import webpush from "web-push";
 
-const { VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY, PUSH_SUBSCRIPTION, ALPHA_VANTAGE_KEY, MODE = "test", APP_URL = "" } = process.env;
-if (!VAPID_PUBLIC_KEY || !VAPID_PRIVATE_KEY || !PUSH_SUBSCRIPTION) {
-  console.log("Missing VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY or PUSH_SUBSCRIPTION secret. Nothing sent.");
+// The public key is not secret; it matches VAPID_PUBLIC in index.html.
+const DEFAULT_PUBLIC = "BGn0xAU7YUEcO_vldQ3YwTsDO_ZPCYatXGTU8S7rNBTyUeHkSZ2iWnSJqdzVBF8DdLwhvBoDUAUMHqyzzkoTi8g";
+const env = process.env;
+const { VAPID_PRIVATE_KEY, MODE = "test", APP_URL = "" } = env;
+const VAPID_PUBLIC_KEY = env.VAPID_PUBLIC_KEY || DEFAULT_PUBLIC;
+// DRY_POWDER_DEVICE is the code the app shows: {"sub": <push subscription>, "av": <Alpha Vantage key>}.
+// PUSH_SUBSCRIPTION and ALPHA_VANTAGE_KEY still work as separate secrets.
+let device = {};
+try { device = env.DRY_POWDER_DEVICE ? JSON.parse(env.DRY_POWDER_DEVICE) : {}; } catch { console.error("DRY_POWDER_DEVICE isn't valid. Copy the device code from the app again."); process.exit(1); }
+const PUSH_SUBSCRIPTION = device.sub ? JSON.stringify(device.sub) : env.PUSH_SUBSCRIPTION;
+const ALPHA_VANTAGE_KEY = env.ALPHA_VANTAGE_KEY || device.av || "";
+if (!VAPID_PRIVATE_KEY || !PUSH_SUBSCRIPTION) {
+  console.log("Missing the VAPID_PRIVATE_KEY or DRY_POWDER_DEVICE secret. Nothing sent.");
   process.exit(0);
 }
 
@@ -80,7 +90,7 @@ if (msg) {
     console.log("Sent.");
   } catch (e) {
     console.error("Push failed:", e.statusCode, e.body || e.message);
-    if (e.statusCode === 404 || e.statusCode === 410) console.error("This device code expired. Open Dry Powder, tap Turn on notifications again, and update the PUSH_SUBSCRIPTION secret.");
+    if (e.statusCode === 404 || e.statusCode === 410) console.error("This device code expired. Open Dry Powder, tap Turn on notifications again, and update the DRY_POWDER_DEVICE secret.");
     process.exit(1);
   }
 }

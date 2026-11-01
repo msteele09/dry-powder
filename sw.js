@@ -1,5 +1,5 @@
 // Dry Powder service worker: offline shell + push notifications.
-const CACHE = "dry-powder-v1";
+const CACHE = "dry-powder-v2";
 const SHELL = ["./", "./index.html", "./manifest.webmanifest", "./icons/icon-192.png", "./icons/icon-512.png", "./icons/apple-touch-icon.png"];
 
 self.addEventListener("install", e => {
